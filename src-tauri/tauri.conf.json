@@ -1,0 +1,38 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "productName": "Codeodoro",
+  "version": "0.1.0",
+  "identifier": "com.codeodoro.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Codeodoro",
+        "width": 900,
+        "height": 720,
+        "minWidth": 720,
+        "minHeight": 600,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.png"
+    ],
+    "category": "DeveloperTool",
+    "shortDescription": "Daily commit goals via the GitHub CLI",
+    "longDescription": "Codeodoro tracks your daily commit goal using the local gh CLI and nudges you with notifications."
+  }
+}

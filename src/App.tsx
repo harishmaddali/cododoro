@@ -21,11 +21,11 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const refreshContributions = useCallback(async () => {
+  const refreshContributions = useCallback(async (onlyNonMerge: boolean) => {
     setRefreshing(true);
     setError(null);
     try {
-      const data = await fetchContributions();
+      const data = await fetchContributions(onlyNonMerge);
       setSnapshot(data);
     } catch (e) {
       setError(String(e));
@@ -47,7 +47,7 @@ export default function App() {
       await applySettings(loaded).catch(() => undefined);
       const status = await refreshGhStatus();
       if (status.authenticated) {
-        await refreshContributions();
+        await refreshContributions(loaded.onlyNonMergeCommits);
       }
       setLoading(false);
     })();
@@ -57,16 +57,31 @@ export default function App() {
     if (!ghStatus?.authenticated) return;
     const ms = Math.max(1, settings.pollIntervalMinutes) * 60_000;
     const interval = window.setInterval(() => {
-      refreshContributions();
+      refreshContributions(settings.onlyNonMergeCommits);
     }, ms);
     return () => window.clearInterval(interval);
-  }, [ghStatus?.authenticated, settings.pollIntervalMinutes, refreshContributions]);
+  }, [
+    ghStatus?.authenticated,
+    settings.pollIntervalMinutes,
+    settings.onlyNonMergeCommits,
+    refreshContributions,
+  ]);
 
-  const updateSettings = useCallback(async (next: Settings) => {
-    setSettings(next);
-    await saveSettings(next);
-    await applySettings(next);
-  }, []);
+  const updateSettings = useCallback(
+    async (next: Settings) => {
+      const prevOnlyNonMerge = settings.onlyNonMergeCommits;
+      setSettings(next);
+      await saveSettings(next);
+      await applySettings(next);
+      if (
+        next.onlyNonMergeCommits !== prevOnlyNonMerge &&
+        ghStatus?.authenticated
+      ) {
+        await refreshContributions(next.onlyNonMergeCommits);
+      }
+    },
+    [settings.onlyNonMergeCommits, ghStatus?.authenticated, refreshContributions],
+  );
 
   if (loading) {
     return (
@@ -83,7 +98,7 @@ export default function App() {
         onRecheck={async () => {
           const status = await refreshGhStatus();
           if (status.authenticated) {
-            await refreshContributions();
+            await refreshContributions(settings.onlyNonMergeCommits);
           }
         }}
       />
@@ -129,7 +144,7 @@ export default function App() {
             snapshot={snapshot}
             settings={settings}
             refreshing={refreshing}
-            onRefresh={refreshContributions}
+            onRefresh={() => refreshContributions(settings.onlyNonMergeCommits)}
           />
         )}
         {view === "settings" && (

@@ -1,8 +1,11 @@
 mod commands;
 mod gh;
 mod scheduler;
+mod tray;
 
 use std::sync::Arc;
+
+use tauri::WindowEvent;
 
 pub fn run() {
     let state = Arc::new(scheduler::SchedulerState::default());
@@ -18,9 +21,15 @@ pub fn run() {
             commands::apply_settings,
             commands::send_test_notification,
         ])
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                let _ = window.hide();
+                api.prevent_close();
+            }
+        })
         .setup(move |app| {
-            let handle = app.handle().clone();
-            scheduler::start(handle, scheduler_state.clone());
+            tray::install(app.handle())?;
+            scheduler::start(app.handle().clone(), scheduler_state.clone());
             Ok(())
         })
         .run(tauri::generate_context!())

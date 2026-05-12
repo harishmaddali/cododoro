@@ -1,5 +1,5 @@
-use std::sync::Mutex;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::Duration as StdDuration;
 
 use chrono::{DateTime, Local, NaiveDate, NaiveTime, Timelike};
@@ -8,15 +8,15 @@ use tauri::AppHandle;
 use tauri_plugin_notification::NotificationExt;
 
 use crate::gh::{self, ContributionsSnapshot};
+use crate::tray;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub daily_goal: u32,
+    pub only_non_merge_commits: bool,
     pub reminder_time: String,
     pub reminder_enabled: bool,
-    pub streak_at_risk_enabled: bool,
-    pub streak_at_risk_hour: u32,
     pub goal_completed_enabled: bool,
     pub poll_interval_minutes: u32,
 }
@@ -25,7 +25,6 @@ pub struct Settings {
 pub struct FiredFlags {
     pub date: Option<NaiveDate>,
     pub reminder: bool,
-    pub streak_at_risk: bool,
     pub goal_completed: bool,
 }
 
@@ -41,6 +40,27 @@ pub fn start(app: AppHandle, state: Arc<SchedulerState>) {
         tick(&app, &state);
         std::thread::sleep(StdDuration::from_secs(60));
     });
+}
+
+pub fn refresh_now(app: &AppHandle, state: &Arc<SchedulerState>) {
+    let only_non_merge = state
+        .settings
+        .lock()
+        .unwrap()
+        .as_ref()
+        .map(|s| s.only_non_merge_commits)
+        .unwrap_or(false);
+    if let Ok(snap) = gh::fetch(only_non_merge) {
+        let daily_goal = state
+            .settings
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|s| s.daily_goal)
+            .unwrap_or(1);
+        tray::update_progress(app, snap.commit_count, daily_goal);
+        *state.last_snapshot.lock().unwrap() = Some(snap);
+    }
 }
 
 fn tick(app: &AppHandle, state: &SchedulerState) {
@@ -66,28 +86,32 @@ fn tick(app: &AppHandle, state: &SchedulerState) {
         let snap = state.last_snapshot.lock().unwrap();
         match snap.as_ref() {
             None => true,
-            Some(s) => match DateTime::parse_from_rfc3339(&s.fetched_at) {
-                Ok(t) => {
-                    let age = now
-                        .signed_duration_since(t.with_timezone(&Local))
-                        .num_minutes();
-                    age >= settings.poll_interval_minutes.max(1) as i64
+            Some(s) => {
+                if s.only_non_merge != settings.only_non_merge_commits {
+                    true
+                } else {
+                    match DateTime::parse_from_rfc3339(&s.fetched_at) {
+                        Ok(t) => {
+                            let age = now
+                                .signed_duration_since(t.with_timezone(&Local))
+                                .num_minutes();
+                            age >= settings.poll_interval_minutes.max(1) as i64
+                        }
+                        Err(_) => true,
+                    }
                 }
-                Err(_) => true,
-            },
+            }
         }
     };
     if needs_fetch {
-        if let Ok(snap) = gh::fetch() {
+        if let Ok(snap) = gh::fetch(settings.only_non_merge_commits) {
+            tray::update_progress(app, snap.commit_count, settings.daily_goal);
             *state.last_snapshot.lock().unwrap() = Some(snap);
         }
     }
 
     let snapshot = state.last_snapshot.lock().unwrap().clone();
-    let today_count = snapshot
-        .as_ref()
-        .map(|s| s.today.commit_count)
-        .unwrap_or(0);
+    let today_count = snapshot.as_ref().map(|s| s.commit_count).unwrap_or(0);
     let goal_met = today_count >= settings.daily_goal;
     let current_hour = now.hour();
     let current_minute = now.minute();
@@ -106,21 +130,6 @@ fn tick(app: &AppHandle, state: &SchedulerState) {
                 );
                 send_notification(app, "Daily commit reminder", &body);
             }
-        }
-    }
-
-    if settings.streak_at_risk_enabled && !goal_met {
-        let streak = snapshot.as_ref().map(|s| s.current_streak).unwrap_or(0);
-        let mut fired = state.fired.lock().unwrap();
-        if !fired.streak_at_risk && streak > 0 && current_hour >= settings.streak_at_risk_hour {
-            fired.streak_at_risk = true;
-            drop(fired);
-            let remaining = settings.daily_goal - today_count;
-            let body = format!(
-                "Your {streak}-day streak is at risk. {remaining} commit{} left for today.",
-                if remaining == 1 { "" } else { "s" }
-            );
-            send_notification(app, "Streak at risk", &body);
         }
     }
 

@@ -5,8 +5,12 @@ export async function checkGhStatus(): Promise<GhStatus> {
   return invoke<GhStatus>("check_gh_status");
 }
 
-export async function fetchContributions(): Promise<ContributionsSnapshot> {
-  return invoke<ContributionsSnapshot>("fetch_contributions");
+export async function fetchContributions(
+  onlyNonMerge: boolean,
+): Promise<ContributionsSnapshot> {
+  return invoke<ContributionsSnapshot>("fetch_contributions", {
+    onlyNonMerge,
+  });
 }
 
 export async function applySettings(settings: Settings): Promise<void> {

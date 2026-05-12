@@ -42,9 +42,24 @@ export function Settings({ settings, onChange }: Props) {
 
       <section className="card space-y-4">
         <div>
+          <h2 className="text-sm font-medium text-zinc-200">Counting rules</h2>
+          <p className="text-xs text-zinc-500">
+            How commits authored by you between 00:00 and 23:59 local time are counted.
+          </p>
+        </div>
+        <Toggle
+          label="Only non-merge commits"
+          description="Skip commits with more than one parent (e.g., merge commits)."
+          checked={settings.onlyNonMergeCommits}
+          onChange={(v) => update("onlyNonMergeCommits", v)}
+        />
+      </section>
+
+      <section className="card space-y-4">
+        <div>
           <h2 className="text-sm font-medium text-zinc-200">Notifications</h2>
           <p className="text-xs text-zinc-500">
-            Stay nudged toward your goal — the app must be running for these to fire.
+            Nudges to help you hit the goal — fire while the app is running.
           </p>
         </div>
 
@@ -63,29 +78,6 @@ export function Settings({ settings, onChange }: Props) {
               className="input w-32"
               disabled={!settings.reminderEnabled}
             />
-          </label>
-        </Toggle>
-
-        <Toggle
-          label="Streak-at-risk alert"
-          description="Warn me late in the day if my streak is about to break."
-          checked={settings.streakAtRiskEnabled}
-          onChange={(v) => update("streakAtRiskEnabled", v)}
-        >
-          <label className="mt-2 flex items-center gap-2 text-xs text-zinc-400">
-            Trigger after
-            <select
-              className="input w-28"
-              value={settings.streakAtRiskHour}
-              onChange={(e) => update("streakAtRiskHour", Number(e.target.value))}
-              disabled={!settings.streakAtRiskEnabled}
-            >
-              {Array.from({ length: 12 }, (_, i) => i + 12).map((h) => (
-                <option key={h} value={h}>
-                  {`${h.toString().padStart(2, "0")}:00`}
-                </option>
-              ))}
-            </select>
           </label>
         </Toggle>
 
@@ -121,7 +113,7 @@ export function Settings({ settings, onChange }: Props) {
         <div>
           <h2 className="text-sm font-medium text-zinc-200">Sync</h2>
           <p className="text-xs text-zinc-500">
-            How often to re-query GitHub via the gh CLI.
+            How often to re-query GitHub via the gh CLI. The menu bar updates after every sync.
           </p>
         </div>
         <div className="flex items-center gap-3">

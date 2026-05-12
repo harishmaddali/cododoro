@@ -2,35 +2,27 @@ export type View = "dashboard" | "settings";
 
 export interface Settings {
   dailyGoal: number;
+  onlyNonMergeCommits: boolean;
   reminderTime: string;
   reminderEnabled: boolean;
-  streakAtRiskEnabled: boolean;
-  streakAtRiskHour: number;
   goalCompletedEnabled: boolean;
   pollIntervalMinutes: number;
 }
 
 export const defaultSettings: Settings = {
   dailyGoal: 3,
+  onlyNonMergeCommits: false,
   reminderTime: "21:00",
   reminderEnabled: true,
-  streakAtRiskEnabled: true,
-  streakAtRiskHour: 22,
   goalCompletedEnabled: true,
-  pollIntervalMinutes: 15,
+  pollIntervalMinutes: 30,
 };
-
-export interface DayContribution {
-  date: string;
-  commitCount: number;
-}
 
 export interface ContributionsSnapshot {
   login: string;
-  today: DayContribution;
-  currentStreak: number;
-  longestStreak: number;
-  last90Days: DayContribution[];
+  date: string;
+  commitCount: number;
+  onlyNonMerge: boolean;
   fetchedAt: string;
 }
 

@@ -1,4 +1,11 @@
-import { ContributionsSnapshot, Settings } from "../lib/types";
+import { useState } from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import {
+  CommitDetail,
+  ContributionsSnapshot,
+  RepoCommits,
+  Settings,
+} from "../lib/types";
 
 interface Props {
   snapshot: ContributionsSnapshot | null;
@@ -75,6 +82,123 @@ export function Dashboard({ snapshot, settings, refreshing, onRefresh }: Props) 
           <span>updated {fetchedAt.toLocaleTimeString()}</span>
         </div>
       </section>
+
+      <RepoBreakdown repos={snapshot.repos} />
     </div>
+  );
+}
+
+function RepoBreakdown({ repos }: { repos: RepoCommits[] }) {
+  if (repos.length === 0) {
+    return (
+      <section className="card text-sm text-zinc-500">
+        No commits found in any repository today.
+      </section>
+    );
+  }
+
+  return (
+    <section className="card p-0">
+      <div className="border-b border-zinc-800 px-5 py-3">
+        <h2 className="text-sm font-medium text-zinc-200">By repository</h2>
+        <p className="text-xs text-zinc-500">
+          Expand a repo to see commits — click a commit to open it on GitHub.
+        </p>
+      </div>
+      <ul>
+        {repos.map((repo) => (
+          <RepoRow key={repo.nameWithOwner} repo={repo} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function RepoRow({ repo }: { repo: RepoCommits }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <li className="border-b border-zinc-800 last:border-0">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-center justify-between gap-4 px-5 py-3 text-left transition hover:bg-zinc-800/40"
+        aria-expanded={expanded}
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <Chevron open={expanded} />
+          <span className="truncate text-sm text-zinc-200">{repo.nameWithOwner}</span>
+        </span>
+        <span className="shrink-0 text-xs text-zinc-500">
+          {repo.commitCount} commit{repo.commitCount === 1 ? "" : "s"}
+        </span>
+      </button>
+      {expanded && (
+        <ul className="border-t border-zinc-800/70 bg-zinc-950/40">
+          {repo.commits.map((commit) => (
+            <CommitRow key={commit.sha} commit={commit} />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
+function CommitRow({ commit }: { commit: CommitDetail }) {
+  const time = commit.authoredAt
+    ? new Date(commit.authoredAt).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "";
+  const handleOpen = () => {
+    if (commit.url) {
+      openUrl(commit.url).catch(() => undefined);
+    }
+  };
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={handleOpen}
+        className="flex w-full items-start gap-3 px-5 py-2 text-left transition hover:bg-zinc-800/40"
+        title={commit.url}
+      >
+        <span className="mt-0.5 shrink-0 font-mono text-xs text-zinc-500">
+          {commit.shortSha}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm text-zinc-200">
+            {commit.message || "(no message)"}
+          </span>
+          {commit.isMerge && (
+            <span className="mr-2 inline-block rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-400">
+              merge
+            </span>
+          )}
+        </span>
+        {time && (
+          <span className="shrink-0 text-xs text-zinc-500 tabular-nums">{time}</span>
+        )}
+      </button>
+    </li>
+  );
+}
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 12 12"
+      className={`shrink-0 text-zinc-500 transition-transform ${open ? "rotate-90" : ""}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="4 2 8 6 4 10" />
+    </svg>
   );
 }

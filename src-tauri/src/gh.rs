@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::process::Command;
 
 use chrono::{Local, TimeZone, Utc};
@@ -62,6 +63,29 @@ pub fn check_status() -> GhStatus {
 }
 
 #[derive(Debug, Serialize, Clone)]
+pub struct CommitDetail {
+    pub sha: String,
+    #[serde(rename = "shortSha")]
+    pub short_sha: String,
+    pub message: String,
+    pub url: String,
+    #[serde(rename = "authoredAt")]
+    pub authored_at: String,
+    #[serde(rename = "isMerge")]
+    pub is_merge: bool,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct RepoCommits {
+    #[serde(rename = "nameWithOwner")]
+    pub name_with_owner: String,
+    pub url: String,
+    #[serde(rename = "commitCount")]
+    pub commit_count: u32,
+    pub commits: Vec<CommitDetail>,
+}
+
+#[derive(Debug, Serialize, Clone)]
 pub struct ContributionsSnapshot {
     pub login: String,
     pub date: String,
@@ -71,6 +95,7 @@ pub struct ContributionsSnapshot {
     pub only_non_merge: bool,
     #[serde(rename = "fetchedAt")]
     pub fetched_at: String,
+    pub repos: Vec<RepoCommits>,
 }
 
 const SAFETY_PAGE_CAP: u32 = 10;
@@ -103,17 +128,26 @@ pub fn fetch(only_non_merge: bool) -> Result<ContributionsSnapshot, String> {
     let first = search_commits(&query, 1)?;
     let total = first["total_count"].as_u64().unwrap_or(0) as u32;
 
-    let count = if !only_non_merge {
-        total
-    } else {
-        let mut filtered = count_non_merge(&first);
-        let pages = total.div_ceil(PAGE_SIZE).min(SAFETY_PAGE_CAP);
-        for page in 2..=pages {
-            let json = search_commits(&query, page)?;
-            filtered += count_non_merge(&json);
-        }
-        filtered
-    };
+    let mut count = 0u32;
+    let mut repos: BTreeMap<String, RepoCommits> = BTreeMap::new();
+    process_page(&first, only_non_merge, &mut count, &mut repos);
+
+    let pages = total.div_ceil(PAGE_SIZE).min(SAFETY_PAGE_CAP);
+    for page in 2..=pages {
+        let json = search_commits(&query, page)?;
+        process_page(&json, only_non_merge, &mut count, &mut repos);
+    }
+
+    let mut repo_list: Vec<RepoCommits> = repos.into_values().collect();
+    for repo in repo_list.iter_mut() {
+        repo.commits
+            .sort_by(|a, b| b.authored_at.cmp(&a.authored_at));
+    }
+    repo_list.sort_by(|a, b| {
+        b.commit_count
+            .cmp(&a.commit_count)
+            .then_with(|| a.name_with_owner.cmp(&b.name_with_owner))
+    });
 
     Ok(ContributionsSnapshot {
         login,
@@ -121,6 +155,7 @@ pub fn fetch(only_non_merge: bool) -> Result<ContributionsSnapshot, String> {
         commit_count: count,
         only_non_merge,
         fetched_at: now_local.to_rfc3339(),
+        repos: repo_list,
     })
 }
 
@@ -175,19 +210,61 @@ fn search_commits(query: &str, page: u32) -> Result<serde_json::Value, String> {
     Ok(json)
 }
 
-fn count_non_merge(json: &serde_json::Value) -> u32 {
+fn process_page(
+    json: &serde_json::Value,
+    only_non_merge: bool,
+    count: &mut u32,
+    repos: &mut BTreeMap<String, RepoCommits>,
+) {
     let items = match json["items"].as_array() {
         Some(a) => a,
-        None => return 0,
+        None => return,
     };
-    items
-        .iter()
-        .filter(|item| {
-            item["parents"]
-                .as_array()
-                .map(|a| a.len())
-                .unwrap_or(0)
-                <= 1
-        })
-        .count() as u32
+    for item in items {
+        let is_merge = item["parents"].as_array().map(|a| a.len()).unwrap_or(0) > 1;
+        if only_non_merge && is_merge {
+            continue;
+        }
+
+        *count += 1;
+
+        let repo_name = item["repository"]["full_name"]
+            .as_str()
+            .unwrap_or("unknown")
+            .to_string();
+        let repo_url = item["repository"]["html_url"]
+            .as_str()
+            .unwrap_or("")
+            .to_string();
+        let sha = item["sha"].as_str().unwrap_or("").to_string();
+        let short_sha = sha.chars().take(7).collect::<String>();
+        let message = item["commit"]["message"]
+            .as_str()
+            .unwrap_or("")
+            .lines()
+            .next()
+            .unwrap_or("")
+            .to_string();
+        let html_url = item["html_url"].as_str().unwrap_or("").to_string();
+        let authored_at = item["commit"]["author"]["date"]
+            .as_str()
+            .unwrap_or("")
+            .to_string();
+
+        let entry = repos.entry(repo_name.clone()).or_insert_with(|| RepoCommits {
+            name_with_owner: repo_name.clone(),
+            url: repo_url,
+            commit_count: 0,
+            commits: Vec::new(),
+        });
+        entry.commit_count += 1;
+        entry.commits.push(CommitDetail {
+            sha,
+            short_sha,
+            message,
+            url: html_url,
+            authored_at,
+            is_merge,
+        });
+    }
 }

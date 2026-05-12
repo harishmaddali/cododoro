@@ -6,6 +6,11 @@
   "permissions": [
     "core:default",
     "notification:default",
-    "store:default"
+    "store:default",
+    "opener:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://github.com/*" }]
+    }
   ]
 }

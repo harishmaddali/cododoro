@@ -18,12 +18,29 @@ export const defaultSettings: Settings = {
   pollIntervalMinutes: 30,
 };
 
+export interface CommitDetail {
+  sha: string;
+  shortSha: string;
+  message: string;
+  url: string;
+  authoredAt: string;
+  isMerge: boolean;
+}
+
+export interface RepoCommits {
+  nameWithOwner: string;
+  url: string;
+  commitCount: number;
+  commits: CommitDetail[];
+}
+
 export interface ContributionsSnapshot {
   login: string;
   date: string;
   commitCount: number;
   onlyNonMerge: boolean;
   fetchedAt: string;
+  repos: RepoCommits[];
 }
 
 export interface GhStatus {

@@ -52,11 +52,29 @@ export function Dashboard({ snapshot, settings, refreshing, onRefresh }: Props) 
           </div>
 
           <button
-            className="btn-ghost mt-1"
+            className="inline-flex items-center justify-center h-7 w-7 rounded-md transition-all duration-100"
             onClick={onRefresh}
             disabled={refreshing}
+            title={refreshing ? "Refreshing..." : "Refresh"}
+            style={{
+              background: refreshing ? "var(--bg-control-hover)" : "var(--bg-control)",
+              color: refreshing ? "var(--text-primary)" : "var(--text-secondary)",
+              cursor: refreshing ? "wait" : "pointer",
+            }}
+            onMouseEnter={(e) => {
+              if (!refreshing) {
+                (e.currentTarget as HTMLElement).style.background = "var(--bg-control-hover)";
+                (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!refreshing) {
+                (e.currentTarget as HTMLElement).style.background = "var(--bg-control)";
+                (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+              }
+            }}
           >
-            {refreshing ? "Refreshing…" : "Refresh"}
+            <RefreshIcon spinning={refreshing} />
           </button>
         </div>
 
@@ -225,6 +243,28 @@ function Chevron({ open }: { open: boolean }) {
       aria-hidden="true"
     >
       <polyline points="3 2 7 5 3 8" />
+    </svg>
+  );
+}
+
+function RefreshIcon({ spinning }: { spinning: boolean }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      className={spinning ? "animate-spin" : ""}
+      style={{ transitionDuration: spinning ? "0.6s" : "0s" }}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M 1.5 4 Q 1.5 1.5 4 1.5" />
+      <path d="M 12.5 10 Q 12.5 12.5 10 12.5" />
+      <path d="M 2 7 A 5 5 0 0 1 12 7" />
     </svg>
   );
 }

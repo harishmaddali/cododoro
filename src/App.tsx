@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { Dashboard } from "./components/Dashboard";
 import { Settings as SettingsView } from "./components/Settings";
 import { Onboarding } from "./components/Onboarding";
@@ -66,6 +67,19 @@ export default function App() {
     settings.onlyNonMergeCommits,
     refreshContributions,
   ]);
+
+  useEffect(() => {
+    if (!ghStatus?.authenticated) return;
+    let unlisten: (() => void) | null = null;
+    listen("tauri://focus", () => {
+      refreshContributions(settings.onlyNonMergeCommits);
+    })
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch(() => undefined);
+    return () => unlisten?.();
+  }, [ghStatus?.authenticated, settings.onlyNonMergeCommits, refreshContributions]);
 
   const updateSettings = useCallback(
     async (next: Settings) => {

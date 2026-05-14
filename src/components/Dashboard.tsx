@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   CommitDetail,
   ContributionsSnapshot,
@@ -43,17 +42,12 @@ export function Dashboard({ snapshot, settings, refreshing, onRefresh }: Props) 
       <div className="card">
         <div className="flex items-start justify-between">
           <div>
-            <p
-              className="text-[11px] font-medium tracking-wide uppercase"
-              style={{ color: "var(--text-tertiary)" }}
-            >
-              {snapshot.date}
+            <p className="text-xs uppercase tracking-wide text-zinc-500">
+              Today · <span className="font-mono">{snapshot.date}</span>
             </p>
-            <p className="mt-1 font-semibold tabular-nums" style={{ fontSize: 40, lineHeight: "44px", color: "var(--text-primary)" }}>
-              {todayCount}
-              <span className="text-[22px] font-normal" style={{ color: "var(--text-tertiary)" }}>
-                {" "}/ {goal}
-              </span>
+            <p className="mt-1 font-mono text-4xl font-semibold tabular-nums">
+              <span className="text-accent">{todayCount}</span>
+              <span className="text-xl text-zinc-500"> / {goal}</span>
             </p>
           </div>
 
@@ -126,25 +120,11 @@ function RepoBreakdown({ repos }: { repos: RepoCommits[] }) {
   }
 
   return (
-    <div
-      className="overflow-hidden rounded-[10px]"
-      style={{
-        background: "var(--bg-card)",
-        border: "1px solid var(--border-card)",
-        boxShadow: "var(--shadow-card)",
-        backdropFilter: "blur(20px) saturate(1.5)",
-        WebkitBackdropFilter: "blur(20px) saturate(1.5)",
-      }}
-    >
-      <div
-        className="px-4 py-3"
-        style={{ borderBottom: "1px solid var(--border-separator)" }}
-      >
-        <p className="text-[13px] font-medium" style={{ color: "var(--text-primary)" }}>
-          By repository
-        </p>
-        <p className="text-[11px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>
-          Tap a repo to expand — click a commit to open on GitHub
+    <section className="card p-0">
+      <div className="border-b border-zinc-800 px-5 py-3">
+        <h2 className="text-sm font-medium text-zinc-200">By repository</h2>
+        <p className="text-xs text-zinc-500">
+          Expand a repo to see all commits made today.
         </p>
       </div>
       <ul>
@@ -152,7 +132,7 @@ function RepoBreakdown({ repos }: { repos: RepoCommits[] }) {
           <RepoRow key={repo.nameWithOwner} repo={repo} />
         ))}
       </ul>
-    </div>
+    </section>
   );
 }
 
@@ -177,8 +157,8 @@ function RepoRow({ repo }: { repo: RepoCommits }) {
           <Chevron open={expanded} />
           <span className="truncate text-[13px]">{repo.nameWithOwner}</span>
         </span>
-        <span className="shrink-0 text-[11px] tabular-nums" style={{ color: "var(--text-tertiary)" }}>
-          {repo.commitCount} {repo.commitCount === 1 ? "commit" : "commits"}
+        <span className="shrink-0 font-mono text-sm font-semibold text-accent">
+          {repo.commitCount}
         </span>
       </button>
       {expanded && (
@@ -199,27 +179,10 @@ function CommitRow({ commit }: { commit: CommitDetail }) {
         minute: "2-digit",
       })
     : "";
-  const handleOpen = () => {
-    if (commit.url) openUrl(commit.url).catch(() => undefined);
-  };
   return (
     <li>
-      <button
-        type="button"
-        onClick={handleOpen}
-        className="flex w-full items-start gap-3 px-4 py-2 text-left transition-colors duration-100"
-        title={commit.url}
-        onMouseEnter={(e) =>
-          ((e.currentTarget as HTMLElement).style.background = "var(--bg-row-hover)")
-        }
-        onMouseLeave={(e) =>
-          ((e.currentTarget as HTMLElement).style.background = "transparent")
-        }
-      >
-        <span
-          className="mt-0.5 shrink-0 font-mono text-[11px] tabular-nums"
-          style={{ color: "var(--text-tertiary)" }}
-        >
+      <div className="flex w-full items-start gap-3 px-5 py-2 text-left">
+        <span className="mt-0.5 shrink-0 font-mono text-xs text-zinc-500">
           {commit.shortSha}
         </span>
         <span className="min-w-0 flex-1">
@@ -239,11 +202,9 @@ function CommitRow({ commit }: { commit: CommitDetail }) {
           )}
         </span>
         {time && (
-          <span className="shrink-0 text-[11px] tabular-nums" style={{ color: "var(--text-tertiary)" }}>
-            {time}
-          </span>
+          <span className="shrink-0 font-mono text-xs text-zinc-500 tabular-nums">{time}</span>
         )}
-      </button>
+      </div>
     </li>
   );
 }

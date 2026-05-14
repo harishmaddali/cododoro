@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   CommitDetail,
   ContributionsSnapshot,
@@ -40,10 +39,10 @@ export function Dashboard({ snapshot, settings, refreshing, onRefresh }: Props) 
         <div className="flex items-baseline justify-between">
           <div>
             <p className="text-xs uppercase tracking-wide text-zinc-500">
-              Today · {snapshot.date}
+              Today · <span className="font-mono">{snapshot.date}</span>
             </p>
-            <p className="mt-1 text-4xl font-semibold tabular-nums">
-              {todayCount}
+            <p className="mt-1 font-mono text-4xl font-semibold tabular-nums">
+              <span className="text-accent">{todayCount}</span>
               <span className="text-xl text-zinc-500"> / {goal}</span>
             </p>
           </div>
@@ -102,7 +101,7 @@ function RepoBreakdown({ repos }: { repos: RepoCommits[] }) {
       <div className="border-b border-zinc-800 px-5 py-3">
         <h2 className="text-sm font-medium text-zinc-200">By repository</h2>
         <p className="text-xs text-zinc-500">
-          Expand a repo to see commits — click a commit to open it on GitHub.
+          Expand a repo to see all commits made today.
         </p>
       </div>
       <ul>
@@ -128,8 +127,8 @@ function RepoRow({ repo }: { repo: RepoCommits }) {
           <Chevron open={expanded} />
           <span className="truncate text-sm text-zinc-200">{repo.nameWithOwner}</span>
         </span>
-        <span className="shrink-0 text-xs text-zinc-500">
-          {repo.commitCount} commit{repo.commitCount === 1 ? "" : "s"}
+        <span className="shrink-0 font-mono text-sm font-semibold text-accent">
+          {repo.commitCount}
         </span>
       </button>
       {expanded && (
@@ -150,19 +149,9 @@ function CommitRow({ commit }: { commit: CommitDetail }) {
         minute: "2-digit",
       })
     : "";
-  const handleOpen = () => {
-    if (commit.url) {
-      openUrl(commit.url).catch(() => undefined);
-    }
-  };
   return (
     <li>
-      <button
-        type="button"
-        onClick={handleOpen}
-        className="flex w-full items-start gap-3 px-5 py-2 text-left transition hover:bg-zinc-800/40"
-        title={commit.url}
-      >
+      <div className="flex w-full items-start gap-3 px-5 py-2 text-left">
         <span className="mt-0.5 shrink-0 font-mono text-xs text-zinc-500">
           {commit.shortSha}
         </span>
@@ -177,9 +166,9 @@ function CommitRow({ commit }: { commit: CommitDetail }) {
           )}
         </span>
         {time && (
-          <span className="shrink-0 text-xs text-zinc-500 tabular-nums">{time}</span>
+          <span className="shrink-0 font-mono text-xs text-zinc-500 tabular-nums">{time}</span>
         )}
-      </button>
+      </div>
     </li>
   );
 }

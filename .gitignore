@@ -25,3 +25,6 @@ yarn-error.log*
 # Env
 .env
 .env.*.local
+
+# Updater signing key (NEVER commit!)
+src-tauri/private_key.pem

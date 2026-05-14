@@ -85,57 +85,79 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-zinc-500">
+      <div className="flex h-full items-center justify-center text-[13px] text-secondary">
         Loading…
       </div>
     );
   }
 
   if (!ghStatus?.authenticated) {
-    return (
-      <Onboarding
-        status={ghStatus}
-        onRecheck={async () => {
-          const status = await refreshGhStatus();
-          if (status.authenticated) {
-            await refreshContributions(settings.onlyNonMergeCommits);
-          }
-        }}
-      />
-    );
+    return <Onboarding status={ghStatus} onRecheck={async () => {
+      const status = await refreshGhStatus();
+      if (status.authenticated) {
+        await refreshContributions(settings.onlyNonMergeCommits);
+      }
+    }} />;
   }
 
   return (
-    <div className="mx-auto flex h-full max-w-3xl flex-col">
-      <header className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="h-7 w-7 rounded-md bg-accent" />
+    <div className="flex h-full flex-col" style={{ background: "var(--bg-app)" }}>
+      {/* Title-bar drag region — 52px top padding clears the Overlay traffic lights */}
+      <div
+        className="flex items-center justify-between px-5 pt-[52px] pb-0"
+        data-tauri-drag-region
+      >
+        {/* Left: identity */}
+        <div className="flex items-center gap-2.5 pointer-events-none select-none">
+          <div
+            className="h-5 w-5 rounded"
+            style={{ background: "var(--accent)" }}
+          />
           <div>
-            <h1 className="text-base font-semibold leading-tight">Codeodoro</h1>
-            <p className="text-xs text-zinc-500">
-              {ghStatus.login ? `@${ghStatus.login}` : "Daily commit goal"}
+            <p className="text-[13px] font-semibold text-primary leading-tight">
+              Codeodoro
             </p>
+            {ghStatus.login && (
+              <p className="text-[11px] text-secondary leading-none mt-0.5">
+                @{ghStatus.login}
+              </p>
+            )}
           </div>
         </div>
-        <nav className="flex gap-1">
-          <button
-            className={`btn-ghost ${view === "dashboard" ? "text-zinc-100" : ""}`}
-            onClick={() => setView("dashboard")}
-          >
-            Dashboard
-          </button>
-          <button
-            className={`btn-ghost ${view === "settings" ? "text-zinc-100" : ""}`}
-            onClick={() => setView("settings")}
-          >
-            Settings
-          </button>
-        </nav>
-      </header>
 
-      <main className="flex-1 overflow-y-auto px-6 py-6">
+        {/* Right: segmented tab control */}
+        <div
+          className="flex gap-0.5 rounded-[8px] p-0.5 pointer-events-auto"
+          style={{
+            background: "rgba(120,120,128,0.14)",
+          }}
+        >
+          {(["dashboard", "settings"] as View[]).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={`mac-tab ${view === v ? "mac-tab-active" : ""}`}
+              style={{ textTransform: "capitalize" }}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Separator */}
+      <div className="mx-5 mt-3 h-px" style={{ background: "var(--border-separator)" }} />
+
+      <main className="flex-1 overflow-y-auto px-5 py-4">
         {error && (
-          <div className="mb-4 rounded-md border border-red-900/60 bg-red-950/40 px-3 py-2 text-sm text-red-300">
+          <div
+            className="mb-4 rounded-[8px] px-3 py-2 text-[13px]"
+            style={{
+              background: "rgba(255, 59, 48, 0.1)",
+              border: "1px solid rgba(255, 59, 48, 0.2)",
+              color: "rgb(255, 100, 90)",
+            }}
+          >
             {error}
           </div>
         )}

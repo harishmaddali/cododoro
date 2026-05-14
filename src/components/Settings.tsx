@@ -15,14 +15,9 @@ export function Settings({ settings, onChange }: Props) {
   };
 
   return (
-    <div className="space-y-6">
-      <section className="card space-y-4">
-        <div>
-          <h2 className="text-sm font-medium text-zinc-200">Daily goal</h2>
-          <p className="text-xs text-zinc-500">
-            How many commits do you want to make per day?
-          </p>
-        </div>
+    <div className="space-y-3 pb-4">
+      {/* Daily goal */}
+      <Section title="Daily goal" subtitle="How many commits do you want to make per day?">
         <div className="flex items-center gap-3">
           <input
             type="number"
@@ -32,90 +27,94 @@ export function Settings({ settings, onChange }: Props) {
             onChange={(e) =>
               update("dailyGoal", Math.max(1, Math.min(50, Number(e.target.value) || 1)))
             }
-            className="input w-24"
+            className="input"
+            style={{ width: 72 }}
           />
-          <span className="text-sm text-zinc-400">
-            commit{settings.dailyGoal === 1 ? "" : "s"} per day
+          <span className="text-[13px]" style={{ color: "var(--text-secondary)" }}>
+            commit{settings.dailyGoal === 1 ? "" : "s"} / day
           </span>
         </div>
-      </section>
+      </Section>
 
-      <section className="card space-y-4">
-        <div>
-          <h2 className="text-sm font-medium text-zinc-200">Counting rules</h2>
-          <p className="text-xs text-zinc-500">
-            How commits authored by you between 00:00 and 23:59 local time are counted.
-          </p>
-        </div>
+      {/* Counting rules */}
+      <Section title="Counting rules" subtitle="How commits authored by you are counted.">
         <Toggle
           label="Only non-merge commits"
-          description="Skip commits with more than one parent (e.g., merge commits)."
+          description="Skip commits with more than one parent."
           checked={settings.onlyNonMergeCommits}
           onChange={(v) => update("onlyNonMergeCommits", v)}
         />
-      </section>
+      </Section>
 
-      <section className="card space-y-4">
-        <div>
-          <h2 className="text-sm font-medium text-zinc-200">Notifications</h2>
-          <p className="text-xs text-zinc-500">
-            Nudges to help you hit the goal — fire while the app is running.
-          </p>
-        </div>
+      {/* Notifications */}
+      <Section
+        title="Notifications"
+        subtitle="Nudges fired while the app is running."
+      >
+        <div className="space-y-2">
+          <Toggle
+            label="Daily reminder"
+            description="Ping at a fixed time if goal not met."
+            checked={settings.reminderEnabled}
+            onChange={(v) => update("reminderEnabled", v)}
+          >
+            <label
+              className="mt-2.5 flex items-center gap-2 text-[12px]"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              Time
+              <input
+                type="time"
+                value={settings.reminderTime}
+                onChange={(e) => update("reminderTime", e.target.value)}
+                className="input"
+                style={{ width: 110 }}
+                disabled={!settings.reminderEnabled}
+              />
+            </label>
+          </Toggle>
 
-        <Toggle
-          label="Daily reminder"
-          description="Ping me at a fixed time each day if I haven't met the goal."
-          checked={settings.reminderEnabled}
-          onChange={(v) => update("reminderEnabled", v)}
-        >
-          <label className="mt-2 flex items-center gap-2 text-xs text-zinc-400">
-            Time
-            <input
-              type="time"
-              value={settings.reminderTime}
-              onChange={(e) => update("reminderTime", e.target.value)}
-              className="input w-32"
-              disabled={!settings.reminderEnabled}
-            />
-          </label>
-        </Toggle>
+          <Toggle
+            label="Goal celebration"
+            description="Cheer when daily goal is reached."
+            checked={settings.goalCompletedEnabled}
+            onChange={(v) => update("goalCompletedEnabled", v)}
+          />
 
-        <Toggle
-          label="Goal-completed celebration"
-          description="Cheer when I hit today's goal."
-          checked={settings.goalCompletedEnabled}
-          onChange={(v) => update("goalCompletedEnabled", v)}
-        />
-
-        <div className="flex items-center justify-between pt-2">
-          <p className="text-xs text-zinc-500">
-            Test a notification to verify OS permissions.
-          </p>
-          <button
-            className="btn-ghost"
-            disabled={testing}
-            onClick={async () => {
-              setTesting(true);
-              try {
-                await notifyTest();
-              } finally {
-                setTesting(false);
-              }
+          <div
+            className="flex items-center justify-between rounded-[8px] px-3 py-2.5"
+            style={{
+              background: "var(--bg-control)",
+              border: "1px solid var(--border-card)",
             }}
           >
-            {testing ? "Sending…" : "Send test"}
-          </button>
+            <p className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
+              Test OS notification permissions
+            </p>
+            <button
+              className="btn-ghost"
+              style={{ fontSize: 12, paddingTop: 4, paddingBottom: 4 }}
+              disabled={testing}
+              onClick={async () => {
+                setTesting(true);
+                try {
+                  await notifyTest();
+                } finally {
+                  setTesting(false);
+                }
+              }}
+            >
+              {testing ? "Sending…" : "Send test"}
+            </button>
+          </div>
         </div>
-      </section>
+      </Section>
 
-      <section className="card space-y-4">
-        <div>
-          <h2 className="text-sm font-medium text-zinc-200">Sync</h2>
-          <p className="text-xs text-zinc-500">
-            How often to re-query GitHub via the gh CLI. The menu bar updates after every sync.
-          </p>
-        </div>
+      {/* Sync */}
+      <Section
+        title="Sync interval"
+        subtitle="How often to re-query GitHub via the gh CLI."
+      >
         <div className="flex items-center gap-3">
           <input
             type="number"
@@ -128,11 +127,38 @@ export function Settings({ settings, onChange }: Props) {
                 Math.max(1, Math.min(120, Number(e.target.value) || 1)),
               )
             }
-            className="input w-24"
+            className="input"
+            style={{ width: 72 }}
           />
-          <span className="text-sm text-zinc-400">minutes</span>
+          <span className="text-[13px]" style={{ color: "var(--text-secondary)" }}>
+            minutes
+          </span>
         </div>
-      </section>
+      </Section>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="card space-y-3">
+      <div>
+        <h2 className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>
+          {title}
+        </h2>
+        <p className="text-[11px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
+          {subtitle}
+        </p>
+      </div>
+      {children}
     </div>
   );
 }
@@ -151,20 +177,45 @@ function Toggle({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-zinc-800 p-3">
+    <div
+      className="rounded-[8px] px-3 py-2.5"
+      style={{
+        background: "var(--bg-control)",
+        border: "1px solid var(--border-card)",
+      }}
+    >
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm text-zinc-200">{label}</p>
-          <p className="text-xs text-zinc-500">{description}</p>
+        <div className="min-w-0">
+          <p className="text-[13px]" style={{ color: "var(--text-primary)" }}>
+            {label}
+          </p>
+          <p className="text-[11px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
+            {description}
+          </p>
         </div>
+
+        {/* macOS-style toggle */}
         <button
           role="switch"
           aria-checked={checked}
           onClick={() => onChange(!checked)}
-          className={`relative h-5 w-9 shrink-0 rounded-full transition ${checked ? "bg-accent" : "bg-zinc-700"}`}
+          className="relative shrink-0 mt-0.5 rounded-full transition-colors duration-200 focus:outline-none focus-visible:ring-2"
+          style={{
+            width: 36,
+            height: 21,
+            background: checked ? "var(--accent)" : "var(--toggle-off)",
+          }}
         >
           <span
-            className={`absolute top-0.5 h-4 w-4 rounded-full bg-zinc-100 transition ${checked ? "left-4" : "left-0.5"}`}
+            className="absolute rounded-full transition-all duration-200"
+            style={{
+              width: 17,
+              height: 17,
+              top: 2,
+              left: checked ? 17 : 2,
+              background: "var(--toggle-thumb)",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+            }}
           />
         </button>
       </div>

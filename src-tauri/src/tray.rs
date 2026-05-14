@@ -9,10 +9,7 @@ use crate::scheduler::{self, SchedulerState};
 pub const TRAY_ID: &str = "codeodoro-tray";
 
 pub fn install(app: &AppHandle) -> tauri::Result<()> {
-    let open = MenuItem::with_id(app, "open", "Open Codeodoro", true, None::<&str>)?;
-    let refresh = MenuItem::with_id(app, "refresh", "Refresh now", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &refresh, &quit])?;
+    let menu = build_menu(app, "—")?;
 
     let icon = app
         .default_window_icon()
@@ -43,17 +40,49 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
 }
 
 pub fn update_progress(app: &AppHandle, count: u32, goal: u32) {
-    if let Some(tray) = app.tray_by_id(TRAY_ID) {
-        let met = count >= goal;
-        let title = if met {
-            format!("✓ {count}/{goal}")
-        } else {
-            format!("{count}/{goal}")
-        };
-        let tooltip = format!("Codeodoro · {count}/{goal} commits today");
-        let _ = tray.set_title(Some(title));
-        let _ = tray.set_tooltip(Some(tooltip));
+    let Some(tray) = app.tray_by_id(TRAY_ID) else {
+        return;
+    };
+
+    let met = count >= goal;
+    let bar = progress_dots(count, goal);
+
+    let title = if met {
+        format!("✓ {count}/{goal}")
+    } else {
+        format!("{count}/{goal}")
+    };
+
+    let progress_label = if met {
+        format!("✓ {count} / {goal} commits today  {bar}")
+    } else {
+        format!("{count} / {goal} commits today  {bar}")
+    };
+
+    let _ = tray.set_title(Some(&title));
+    let _ = tray.set_tooltip(Some(format!("Codeodoro · {count}/{goal} commits today")));
+
+    if let Ok(menu) = build_menu(app, &progress_label) {
+        let _ = tray.set_menu(Some(menu));
     }
+}
+
+fn build_menu(app: &AppHandle, progress_label: &str) -> tauri::Result<Menu<tauri::Wry>> {
+    let progress = MenuItem::with_id(app, "progress", progress_label, false, None::<&str>)?;
+    let open = MenuItem::with_id(app, "open", "Open Codeodoro", true, None::<&str>)?;
+    let refresh = MenuItem::with_id(app, "refresh", "Refresh Now", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+    Menu::with_items(app, &[&progress, &open, &refresh, &quit])
+}
+
+fn progress_dots(count: u32, goal: u32) -> String {
+    let filled = if goal == 0 {
+        5
+    } else {
+        (count.min(goal) * 5 / goal) as usize
+    };
+    let empty = 5usize.saturating_sub(filled);
+    format!("{}{}", "●".repeat(filled), "○".repeat(empty))
 }
 
 fn show_main_window(app: &AppHandle) {

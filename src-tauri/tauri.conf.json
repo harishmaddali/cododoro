@@ -1,5 +1,5 @@
 {
-  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Codeodoro",
   "version": "0.1.0",
   "identifier": "com.codeodoro.app",
@@ -10,15 +10,23 @@
     "beforeBuildCommand": "npm run build"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
         "label": "main",
-        "title": "Codeodoro",
-        "width": 900,
-        "height": 720,
+        "title": "",
+        "width": 820,
+        "height": 660,
         "minWidth": 720,
-        "minHeight": 600,
-        "resizable": true
+        "minHeight": 580,
+        "resizable": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "transparent": true,
+        "windowEffects": {
+          "effects": ["sidebar"],
+          "state": "followsWindowActiveState"
+        }
       }
     ],
     "security": {

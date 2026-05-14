@@ -116,13 +116,14 @@ export default function App() {
 
   return (
     <div className="flex h-full flex-col" style={{ background: "var(--bg-app)" }}>
-      {/* Title-bar drag region — 52px top padding clears the Overlay traffic lights */}
-      <div
-        className="flex items-center justify-between px-5 pt-[52px] pb-0"
-        data-tauri-drag-region
-      >
-        {/* Left: identity */}
-        <div className="flex items-center gap-2.5 pointer-events-none select-none">
+      {/* Header with title-bar drag region — 52px top padding clears the Overlay traffic lights */}
+      <div className="flex items-center justify-between px-5 pt-[52px] pb-0 gap-4">
+        {/* Left: identity (draggable) */}
+        <div
+          className="flex items-center gap-2.5 flex-1 pointer-events-none select-none"
+          data-tauri-drag-region
+          style={{ userSelect: "none" }}
+        >
           <div
             className="h-5 w-5 rounded"
             style={{ background: "var(--accent)" }}
@@ -139,11 +140,12 @@ export default function App() {
           </div>
         </div>
 
-        {/* Right: segmented tab control */}
+        {/* Right: segmented tab control (interactive, not draggable) */}
         <div
-          className="flex gap-0.5 rounded-[8px] p-0.5 pointer-events-auto"
+          className="flex gap-0.5 rounded-[8px] p-0.5 flex-shrink-0"
           style={{
             background: "rgba(120,120,128,0.14)",
+            pointerEvents: "auto",
           }}
         >
           {(["dashboard", "settings"] as View[]).map((v) => (

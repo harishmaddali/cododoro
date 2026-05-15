@@ -117,14 +117,27 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-full flex-col" style={{ background: "var(--bg-app)" }}>
-      {/* Header with title-bar drag region — 52px top padding clears the Overlay traffic lights */}
+    <div
+      className="relative flex h-full flex-col"
+      style={{ background: "var(--bg-app)" }}
+    >
+      {/* Dedicated invisible drag bar — spans full window width at the top.
+          Positioned absolutely so it sits above everything (except buttons which
+          are explicitly raised via z-index). 52px height clears the macOS
+          Overlay traffic lights and gives plenty of drag area. */}
       <div
-        className="flex items-center justify-between px-5 pt-[52px] pb-0 gap-4"
         data-tauri-drag-region
-        style={{ userSelect: "none" }}
+        className="absolute top-0 left-0 right-0 h-[52px]"
+        style={{ zIndex: 10 }}
+      />
+
+      {/* Header — interactive content sits ABOVE the drag bar via z-index */}
+      <div
+        className="relative flex items-center justify-between px-5 pt-[52px] pb-0 gap-4"
+        style={{ zIndex: 20 }}
       >
-        {/* Left: identity (draggable - children inherit drag region via attribute) */}
+        {/* Left: identity. Mark as drag region so users can also drag from
+            the title text itself (in addition to the empty area above). */}
         <div
           className="flex items-center gap-2.5 flex-1 select-none"
           data-tauri-drag-region
@@ -152,11 +165,12 @@ export default function App() {
           </div>
         </div>
 
-        {/* Right: segmented tab control (interactive, not draggable) */}
+        {/* Right: segmented tab control — interactive, sits above drag bar */}
         <div
-          className="flex gap-0.5 rounded-[8px] p-0.5 flex-shrink-0"
+          className="relative flex gap-0.5 rounded-[8px] p-0.5 flex-shrink-0"
           style={{
             background: "rgba(120,120,128,0.14)",
+            zIndex: 30,
           }}
         >
           {(["dashboard", "settings"] as View[]).map((v) => (

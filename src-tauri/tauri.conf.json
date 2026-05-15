@@ -42,13 +42,5 @@
     "category": "DeveloperTool",
     "shortDescription": "Daily commit goals via the GitHub CLI",
     "longDescription": "Codeodoro tracks your daily commit goal using the local gh CLI and nudges you with notifications."
-  },
-  "updater": {
-    "active": true,
-    "endpoints": [
-      "https://releases.githubusercontent.com/repos/harishmaddali/codeodoro/releases/latest"
-    ],
-    "dialog": true,
-    "pubkey": "PLACEHOLDER_PUBLIC_KEY"
   }
 }

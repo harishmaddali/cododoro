@@ -76,22 +76,11 @@ The script will:
 2. Generate `src-tauri/private_key.pem` (keep this secret!)
 3. Display your **public key**
 
-### Step 2: Add Public Key to Config
+### Step 2: Add Public Key to Rust Configuration
 
-Copy the public key from Step 1 and update `src-tauri/tauri.conf.json`:
+The updater configuration will be added in the Rust code. Copy the public key from Step 1 for use in the next step.
 
-```json
-{
-  "updater": {
-    "active": true,
-    "endpoints": [
-      "https://releases.githubusercontent.com/repos/harishmaddali/codeodoro/releases/latest"
-    ],
-    "dialog": true,
-    "pubkey": "YOUR_PUBLIC_KEY_HERE"
-  }
-}
-```
+**Note**: The updater will be configured in the Tauri setup code to enable automatic update checks against GitHub Releases.
 
 ### Step 3: Configure GitHub Secrets
 

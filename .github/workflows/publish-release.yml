@@ -1,0 +1,79 @@
+name: Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish-release:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            args: '--target universal-apple-darwin'
+            artifact_name: 'Codeodoro'
+            artifact_ext: 'dmg'
+          - platform: 'ubuntu-22.04'
+            args: ''
+            artifact_name: 'codeodoro'
+            artifact_ext: 'AppImage'
+          - platform: 'windows-latest'
+            args: ''
+            artifact_name: 'Codeodoro'
+            artifact_ext: 'msi'
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Rust setup
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Sync node version and setup cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build and sign the app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Codeodoro ${{ github.ref_name }}'
+          releaseBody: |
+            See the assets to download this version and install.
+
+            Release notes:
+            - Run `npm run tauri:build` locally to generate release artifacts
+            - macOS: Universal binary (Intel + Apple Silicon)
+            - Windows: MSI installer
+            - Linux: AppImage
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}

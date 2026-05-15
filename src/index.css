@@ -9,6 +9,7 @@
   --accent-dim: #1db133;
 
   --bg-app: transparent;
+  --bg-titlebar: rgba(245, 245, 247, 0.85);
   --bg-card: rgba(255, 255, 255, 0.72);
   --bg-card-hover: rgba(255, 255, 255, 0.85);
   --bg-row-hover: rgba(0, 0, 0, 0.04);
@@ -38,6 +39,7 @@
     --accent-dim: #26b048;
 
     --bg-app: transparent;
+    --bg-titlebar: rgba(40, 40, 42, 0.92);
     --bg-card: rgba(44, 44, 46, 0.72);
     --bg-card-hover: rgba(54, 54, 56, 0.82);
     --bg-row-hover: rgba(255, 255, 255, 0.05);

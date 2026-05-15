@@ -118,59 +118,58 @@ export default function App() {
 
   return (
     <div
-      className="relative flex h-full flex-col"
+      className="flex h-full flex-col"
       style={{ background: "var(--bg-app)" }}
     >
-      {/* Dedicated invisible drag bar — spans full window width at the top.
-          Positioned absolutely so it sits above everything (except buttons which
-          are explicitly raised via z-index). 52px height clears the macOS
-          Overlay traffic lights and gives plenty of drag area. */}
+      {/* Title bar — Telegram-style: solid strip at top with traffic lights and title.
+          Entire bar is a drag region. */}
       <div
         data-tauri-drag-region
-        className="absolute top-0 left-0 right-0 h-[52px]"
-        style={{ zIndex: 10 }}
-      />
-
-      {/* Header — interactive content sits ABOVE the drag bar via z-index */}
-      <div
-        className="relative flex items-center justify-between px-5 pt-[52px] pb-0 gap-4"
-        style={{ zIndex: 20 }}
+        className="flex items-center h-[38px] flex-shrink-0 select-none"
+        style={{
+          background: "var(--bg-titlebar)",
+          borderBottom: "1px solid var(--border-separator)",
+          paddingLeft: 88, // leave room for macOS traffic lights
+          paddingRight: 12,
+          userSelect: "none",
+          WebkitUserSelect: "none",
+        }}
       >
-        {/* Left: identity. Mark as drag region so users can also drag from
-            the title text itself (in addition to the empty area above). */}
-        <div
-          className="flex items-center gap-2.5 flex-1 select-none"
+        <span
           data-tauri-drag-region
+          className="text-[13px] font-semibold"
+          style={{ color: "var(--text-primary)" }}
         >
+          Codeodoro
+        </span>
+      </div>
+
+      {/* Sub-header — identity on left, tabs on right (below the title bar) */}
+      <div className="flex items-center justify-between px-5 pt-3 pb-0 gap-4">
+        <div className="flex items-center gap-2.5 flex-1 select-none">
           <div
             className="h-5 w-5 rounded"
             style={{ background: "var(--accent)" }}
-            data-tauri-drag-region
           />
-          <div data-tauri-drag-region>
-            <p
-              className="text-[13px] font-semibold text-primary leading-tight"
-              data-tauri-drag-region
-            >
-              Codeodoro
-            </p>
+          <div>
             {ghStatus.login && (
               <p
-                className="text-[11px] text-secondary leading-none mt-0.5"
-                data-tauri-drag-region
+                className="text-[12px] font-medium text-primary leading-tight"
               >
                 @{ghStatus.login}
               </p>
             )}
+            <p className="text-[11px] text-secondary leading-none mt-0.5">
+              Daily commit tracker
+            </p>
           </div>
         </div>
 
-        {/* Right: segmented tab control — interactive, sits above drag bar */}
+        {/* Right: segmented tab control */}
         <div
-          className="relative flex gap-0.5 rounded-[8px] p-0.5 flex-shrink-0"
+          className="flex gap-0.5 rounded-[8px] p-0.5 flex-shrink-0"
           style={{
             background: "rgba(120,120,128,0.14)",
-            zIndex: 30,
           }}
         >
           {(["dashboard", "settings"] as View[]).map((v) => (

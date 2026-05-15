@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { GearSix, SquaresFour } from "@phosphor-icons/react";
 import { listen } from "@tauri-apps/api/event";
 import { Dashboard } from "./components/Dashboard";
 import { Settings as SettingsView } from "./components/Settings";
 import { Onboarding } from "./components/Onboarding";
+import { TitleBar } from "./components/TitleBar";
 import { loadSettings, saveSettings } from "./lib/store";
 import { applySettings, checkGhStatus, fetchContributions } from "./lib/gh";
 import { checkForUpdates } from "./lib/updater";
@@ -101,118 +103,121 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center text-[13px] text-secondary">
-        Loading…
-      </div>
+      <AppFrame>
+        <div className="flex h-full items-center justify-center text-[13px] text-secondary">
+          Loading…
+        </div>
+      </AppFrame>
     );
   }
 
   if (!ghStatus?.authenticated) {
-    return <Onboarding status={ghStatus} onRecheck={async () => {
-      const status = await refreshGhStatus();
-      if (status.authenticated) {
-        await refreshContributions(settings.onlyNonMergeCommits);
-      }
-    }} />;
+    return (
+      <AppFrame>
+        <Onboarding
+          status={ghStatus}
+          onRecheck={async () => {
+            const status = await refreshGhStatus();
+            if (status.authenticated) {
+              await refreshContributions(settings.onlyNonMergeCommits);
+            }
+          }}
+        />
+      </AppFrame>
+    );
   }
 
+  return (
+    <AppFrame>
+      <div className="flex h-full flex-col">
+        {/* Sub-header — identity on left, tabs on right (below the title bar) */}
+        <div className="flex items-center justify-between px-5 pt-3 pb-0 gap-4">
+          <div className="flex items-center gap-2.5 flex-1 select-none">
+            <div
+              className="h-5 w-5 rounded"
+              style={{ background: "var(--accent)" }}
+            />
+            <div>
+              {ghStatus.login && (
+                <p
+                  className="text-[12px] font-medium text-primary leading-tight"
+                >
+                  @{ghStatus.login}
+                </p>
+              )}
+              <p className="text-[11px] text-secondary leading-none mt-0.5">
+                Daily commit tracker
+              </p>
+            </div>
+          </div>
+
+          {/* Right: segmented tab control */}
+          <div
+            className="flex gap-0.5 rounded-[8px] p-0.5 flex-shrink-0"
+            style={{
+              background: "rgba(120,120,128,0.14)",
+            }}
+          >
+            {(["dashboard", "settings"] as View[]).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                aria-label={v === "dashboard" ? "Dashboard" : "Settings"}
+                aria-pressed={view === v}
+                className={`mac-tab ${view === v ? "mac-tab-active" : ""}`}
+                title={v === "dashboard" ? "Dashboard" : "Settings"}
+              >
+                {v === "dashboard" ? (
+                  <SquaresFour aria-hidden="true" size={16} weight="bold" />
+                ) : (
+                  <GearSix aria-hidden="true" size={16} weight="bold" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Separator */}
+        <div className="mx-5 mt-3 h-px" style={{ background: "var(--border-separator)" }} />
+
+        <main className="flex-1 overflow-y-auto px-5 py-4">
+          {error && (
+            <div
+              className="mb-4 rounded-[8px] px-3 py-2 text-[13px]"
+              style={{
+                background: "rgba(255, 59, 48, 0.1)",
+                border: "1px solid rgba(255, 59, 48, 0.2)",
+                color: "rgb(255, 100, 90)",
+              }}
+            >
+              {error}
+            </div>
+          )}
+          {view === "dashboard" && (
+            <Dashboard
+              snapshot={snapshot}
+              settings={settings}
+              refreshing={refreshing}
+              onRefresh={() => refreshContributions(settings.onlyNonMergeCommits)}
+            />
+          )}
+          {view === "settings" && (
+            <SettingsView settings={settings} onChange={updateSettings} />
+          )}
+        </main>
+      </div>
+    </AppFrame>
+  );
+}
+
+function AppFrame({ children }: { children: ReactNode }) {
   return (
     <div
       className="flex h-full flex-col"
       style={{ background: "var(--bg-app)" }}
     >
-      {/* Title bar — Telegram-style: solid strip at top with traffic lights and title.
-          Entire bar is a drag region. */}
-      <div
-        data-tauri-drag-region
-        className="flex items-center h-[38px] flex-shrink-0 select-none"
-        style={{
-          background: "var(--bg-titlebar)",
-          borderBottom: "1px solid var(--border-separator)",
-          paddingLeft: 88, // leave room for macOS traffic lights
-          paddingRight: 12,
-          userSelect: "none",
-          WebkitUserSelect: "none",
-        }}
-      >
-        <span
-          data-tauri-drag-region
-          className="text-[13px] font-semibold"
-          style={{ color: "var(--text-primary)" }}
-        >
-          Codeodoro
-        </span>
-      </div>
-
-      {/* Sub-header — identity on left, tabs on right (below the title bar) */}
-      <div className="flex items-center justify-between px-5 pt-3 pb-0 gap-4">
-        <div className="flex items-center gap-2.5 flex-1 select-none">
-          <div
-            className="h-5 w-5 rounded"
-            style={{ background: "var(--accent)" }}
-          />
-          <div>
-            {ghStatus.login && (
-              <p
-                className="text-[12px] font-medium text-primary leading-tight"
-              >
-                @{ghStatus.login}
-              </p>
-            )}
-            <p className="text-[11px] text-secondary leading-none mt-0.5">
-              Daily commit tracker
-            </p>
-          </div>
-        </div>
-
-        {/* Right: segmented tab control */}
-        <div
-          className="flex gap-0.5 rounded-[8px] p-0.5 flex-shrink-0"
-          style={{
-            background: "rgba(120,120,128,0.14)",
-          }}
-        >
-          {(["dashboard", "settings"] as View[]).map((v) => (
-            <button
-              key={v}
-              onClick={() => setView(v)}
-              className={`mac-tab ${view === v ? "mac-tab-active" : ""}`}
-              style={{ textTransform: "capitalize" }}
-            >
-              {v}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Separator */}
-      <div className="mx-5 mt-3 h-px" style={{ background: "var(--border-separator)" }} />
-
-      <main className="flex-1 overflow-y-auto px-5 py-4">
-        {error && (
-          <div
-            className="mb-4 rounded-[8px] px-3 py-2 text-[13px]"
-            style={{
-              background: "rgba(255, 59, 48, 0.1)",
-              border: "1px solid rgba(255, 59, 48, 0.2)",
-              color: "rgb(255, 100, 90)",
-            }}
-          >
-            {error}
-          </div>
-        )}
-        {view === "dashboard" && (
-          <Dashboard
-            snapshot={snapshot}
-            settings={settings}
-            refreshing={refreshing}
-            onRefresh={() => refreshContributions(settings.onlyNonMergeCommits)}
-          />
-        )}
-        {view === "settings" && (
-          <SettingsView settings={settings} onChange={updateSettings} />
-        )}
-      </main>
+      <TitleBar />
+      <div className="min-h-0 flex-1">{children}</div>
     </div>
   );
 }

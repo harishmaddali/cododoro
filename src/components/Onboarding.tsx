@@ -26,9 +26,6 @@ export function Onboarding({ status, onRecheck }: Props) {
       className="flex h-full flex-col items-center justify-center px-6"
       style={{ background: "var(--bg-app)" }}
     >
-      {/* Traffic light spacer */}
-      <div style={{ height: 52 }} />
-
       <div className="card w-full" style={{ maxWidth: 420 }}>
         {/* Header */}
         <div className="flex items-center gap-3 mb-5">

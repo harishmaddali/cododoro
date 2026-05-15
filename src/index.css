@@ -145,7 +145,7 @@
 
   /* Segmented / tab nav */
   .mac-tab {
-    @apply px-3 py-1 rounded-md text-[13px] font-medium transition-all duration-100;
+    @apply flex h-7 w-8 items-center justify-center rounded-md transition-all duration-100;
     color: var(--text-secondary);
   }
   .mac-tab:hover {

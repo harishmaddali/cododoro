@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ArrowClockwise } from "@phosphor-icons/react";
 import {
   CommitDetail,
   ContributionsSnapshot,
@@ -74,7 +75,12 @@ export function Dashboard({ snapshot, settings, refreshing, onRefresh }: Props) 
               }
             }}
           >
-            <RefreshIcon spinning={refreshing} />
+            <ArrowClockwise
+              aria-hidden="true"
+              className={refreshing ? "animate-spin" : ""}
+              size={15}
+              weight="bold"
+            />
           </button>
         </div>
 
@@ -243,28 +249,6 @@ function Chevron({ open }: { open: boolean }) {
       aria-hidden="true"
     >
       <polyline points="3 2 7 5 3 8" />
-    </svg>
-  );
-}
-
-function RefreshIcon({ spinning }: { spinning: boolean }) {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      className={spinning ? "animate-spin" : ""}
-      style={{ transitionDuration: spinning ? "0.6s" : "0s" }}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M 1.5 4 Q 1.5 1.5 4 1.5" />
-      <path d="M 12.5 10 Q 12.5 12.5 10 12.5" />
-      <path d="M 2 7 A 5 5 0 0 1 12 7" />
     </svg>
   );
 }

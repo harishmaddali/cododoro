@@ -17,6 +17,7 @@
     "tauri:build:windows": "tauri build --target windows"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
     "@tauri-apps/api": "^2.1.1",
     "@tauri-apps/plugin-notification": "^2.0.1",
     "@tauri-apps/plugin-opener": "^2.2.6",

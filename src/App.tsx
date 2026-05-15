@@ -5,6 +5,7 @@ import { Settings as SettingsView } from "./components/Settings";
 import { Onboarding } from "./components/Onboarding";
 import { loadSettings, saveSettings } from "./lib/store";
 import { applySettings, checkGhStatus, fetchContributions } from "./lib/gh";
+import { checkForUpdates } from "./lib/updater";
 import {
   ContributionsSnapshot,
   defaultSettings,
@@ -51,6 +52,7 @@ export default function App() {
         await refreshContributions(loaded.onlyNonMergeCommits);
       }
       setLoading(false);
+      checkForUpdates(true).catch(() => undefined);
     })();
   }, [refreshContributions, refreshGhStatus]);
 

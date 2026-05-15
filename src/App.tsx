@@ -133,10 +133,7 @@ export default function App() {
         {/* Sub-header — identity on left, tabs on right (below the title bar) */}
         <div className="flex items-center justify-between px-5 pt-3 pb-0 gap-4">
           <div className="flex items-center gap-2.5 flex-1 select-none">
-            <div
-              className="h-5 w-5 rounded"
-              style={{ background: "var(--accent)" }}
-            />
+            <UserAvatar login={ghStatus.login} />
             <div>
               {ghStatus.login && (
                 <p
@@ -207,6 +204,42 @@ export default function App() {
         </main>
       </div>
     </AppFrame>
+  );
+}
+
+function UserAvatar({ login }: { login: string | null }) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [login]);
+
+  if (!login || imageFailed) {
+    return (
+      <div
+        aria-hidden="true"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold"
+        style={{
+          background: "var(--accent)",
+          color: "#fff",
+        }}
+      >
+        {login?.slice(0, 1).toUpperCase()}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      alt={`${login}'s GitHub profile photo`}
+      className="h-7 w-7 shrink-0 rounded-full object-cover"
+      src={`https://github.com/${encodeURIComponent(login)}.png?size=64`}
+      style={{
+        background: "var(--bg-control)",
+        boxShadow: "0 0 0 1px var(--border-card)",
+      }}
+      onError={() => setImageFailed(true)}
+    />
   );
 }
 

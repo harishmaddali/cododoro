@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowClockwise } from "@phosphor-icons/react";
+import { ArrowClockwise, CircleNotch } from "@phosphor-icons/react";
 import {
   CommitDetail,
   ContributionsSnapshot,
@@ -20,11 +20,20 @@ export function Dashboard({ snapshot, settings, refreshing, onRefresh }: Props) 
       <div className="card text-[13px] text-secondary">
         No data yet.{" "}
         <button
-          className="text-accent hover:underline"
+          className="inline-flex items-center gap-1 text-accent hover:underline"
           style={{ color: "var(--accent)" }}
           onClick={onRefresh}
+          disabled={refreshing}
         >
-          Fetch now
+          {refreshing && (
+            <CircleNotch
+              aria-hidden="true"
+              className="animate-spin"
+              size={13}
+              weight="bold"
+            />
+          )}
+          {refreshing ? "Fetching..." : "Fetch now"}
         </button>
       </div>
     );
@@ -35,7 +44,6 @@ export function Dashboard({ snapshot, settings, refreshing, onRefresh }: Props) 
   const progress = Math.min(100, Math.round((todayCount / Math.max(1, goal)) * 100));
   const remaining = Math.max(0, goal - todayCount);
   const goalMet = todayCount >= goal;
-  const fetchedAt = new Date(snapshot.fetchedAt);
 
   return (
     <div className="space-y-3">
@@ -56,6 +64,7 @@ export function Dashboard({ snapshot, settings, refreshing, onRefresh }: Props) 
             className="inline-flex items-center justify-center h-7 w-7 rounded-md transition-all duration-100"
             onClick={onRefresh}
             disabled={refreshing}
+            aria-label={refreshing ? "Refreshing" : "Refresh"}
             title={refreshing ? "Refreshing..." : "Refresh"}
             style={{
               background: refreshing ? "var(--bg-control-hover)" : "var(--bg-control)",
@@ -75,12 +84,16 @@ export function Dashboard({ snapshot, settings, refreshing, onRefresh }: Props) 
               }
             }}
           >
-            <ArrowClockwise
-              aria-hidden="true"
-              className={refreshing ? "animate-spin" : ""}
-              size={15}
-              weight="bold"
-            />
+            {refreshing ? (
+              <CircleNotch
+                aria-hidden="true"
+                className="animate-spin"
+                size={16}
+                weight="bold"
+              />
+            ) : (
+              <ArrowClockwise aria-hidden="true" size={15} weight="bold" />
+            )}
           </button>
         </div>
 
@@ -103,29 +116,6 @@ export function Dashboard({ snapshot, settings, refreshing, onRefresh }: Props) 
             ? "Goal hit. See you tomorrow."
             : `${remaining} more commit${remaining === 1 ? "" : "s"} to hit today's goal.`}
         </p>
-      </div>
-
-      {/* Meta info */}
-      <div
-        className="flex items-center justify-between rounded-[8px] px-3 py-2 text-[11px]"
-        style={{
-          background: "var(--bg-card)",
-          border: "1px solid var(--border-card)",
-          color: "var(--text-secondary)",
-        }}
-      >
-        <span>
-          Counting{" "}
-          <span style={{ color: "var(--text-primary)" }}>
-            {snapshot.onlyNonMerge ? "non-merge commits" : "all commits"}
-          </span>{" "}
-          by{" "}
-          <span style={{ color: "var(--text-primary)" }}>@{snapshot.login}</span>{" "}
-          today
-        </span>
-        <span style={{ color: "var(--text-tertiary)" }}>
-          {fetchedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-        </span>
       </div>
 
       {/* Repo breakdown */}

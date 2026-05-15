@@ -11,7 +11,7 @@ export interface Settings {
 
 export const defaultSettings: Settings = {
   dailyGoal: 3,
-  onlyNonMergeCommits: false,
+  onlyNonMergeCommits: true,
   reminderTime: "21:00",
   reminderEnabled: true,
   goalCompletedEnabled: true,

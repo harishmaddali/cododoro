@@ -49,7 +49,7 @@ pub fn refresh_now(app: &AppHandle, state: &Arc<SchedulerState>) {
         .unwrap()
         .as_ref()
         .map(|s| s.only_non_merge_commits)
-        .unwrap_or(false);
+        .unwrap_or(true);
     if let Ok(snap) = gh::fetch(only_non_merge) {
         let daily_goal = state
             .settings
@@ -78,7 +78,10 @@ fn tick(app: &AppHandle, state: &SchedulerState) {
     }
 
     let settings = match state.settings.lock().unwrap().clone() {
-        Some(s) => s,
+        Some(mut s) => {
+            s.only_non_merge_commits = true;
+            s
+        }
         None => return,
     };
 
@@ -152,10 +155,5 @@ fn parse_time(s: &str) -> Option<(u32, u32)> {
 }
 
 fn send_notification(app: &AppHandle, title: &str, body: &str) {
-    let _ = app
-        .notification()
-        .builder()
-        .title(title)
-        .body(body)
-        .show();
+    let _ = app.notification().builder().title(title).body(body).show();
 }

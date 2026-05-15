@@ -16,11 +16,18 @@ function getStore(): Promise<Store> {
 export async function loadSettings(): Promise<Settings> {
   const store = await getStore();
   const stored = await store.get<Partial<Settings>>(SETTINGS_KEY);
-  return { ...defaultSettings, ...(stored ?? {}) };
+  return {
+    ...defaultSettings,
+    ...(stored ?? {}),
+    onlyNonMergeCommits: true,
+  };
 }
 
 export async function saveSettings(settings: Settings): Promise<void> {
   const store = await getStore();
-  await store.set(SETTINGS_KEY, settings);
+  await store.set(SETTINGS_KEY, {
+    ...settings,
+    onlyNonMergeCommits: true,
+  });
   await store.save();
 }

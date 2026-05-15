@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::process::Command;
 
 use chrono::{Local, TimeZone, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Clone)]
 pub struct GhStatus {
@@ -130,12 +130,12 @@ pub fn fetch(only_non_merge: bool) -> Result<ContributionsSnapshot, String> {
 
     let mut count = 0u32;
     let mut repos: BTreeMap<String, RepoCommits> = BTreeMap::new();
-    process_page(&first, only_non_merge, &mut count, &mut repos);
+    process_page(&first, only_non_merge, &mut count, &mut repos)?;
 
     let pages = total.div_ceil(PAGE_SIZE).min(SAFETY_PAGE_CAP);
     for page in 2..=pages {
         let json = search_commits(&query, page)?;
-        process_page(&json, only_non_merge, &mut count, &mut repos);
+        process_page(&json, only_non_merge, &mut count, &mut repos)?;
     }
 
     let mut repo_list: Vec<RepoCommits> = repos.into_values().collect();
@@ -200,8 +200,8 @@ fn search_commits(query: &str, page: u32) -> Result<serde_json::Value, String> {
         ));
     }
 
-    let json: serde_json::Value = serde_json::from_slice(&output.stdout)
-        .map_err(|e| format!("invalid JSON from gh: {e}"))?;
+    let json: serde_json::Value =
+        serde_json::from_slice(&output.stdout).map_err(|e| format!("invalid JSON from gh: {e}"))?;
 
     if let Some(message) = json.get("message").and_then(|v| v.as_str()) {
         return Err(format!("GitHub error: {message}"));
@@ -215,10 +215,10 @@ fn process_page(
     only_non_merge: bool,
     count: &mut u32,
     repos: &mut BTreeMap<String, RepoCommits>,
-) {
+) -> Result<(), String> {
     let items = match json["items"].as_array() {
         Some(a) => a,
-        None => return,
+        None => return Ok(()),
     };
     for item in items {
         let is_merge = item["parents"].as_array().map(|a| a.len()).unwrap_or(0) > 1;
@@ -226,17 +226,24 @@ fn process_page(
             continue;
         }
 
+        let Some(repo_name) = item["repository"]["full_name"].as_str() else {
+            continue;
+        };
+        let Some(sha) = item["sha"].as_str() else {
+            continue;
+        };
+        let repo_name = repo_name.to_string();
+        let sha = sha.to_string();
+        if !commit_has_code_changes(&repo_name, &sha)? {
+            continue;
+        }
+
         *count += 1;
 
-        let repo_name = item["repository"]["full_name"]
-            .as_str()
-            .unwrap_or("unknown")
-            .to_string();
         let repo_url = item["repository"]["html_url"]
             .as_str()
             .unwrap_or("")
             .to_string();
-        let sha = item["sha"].as_str().unwrap_or("").to_string();
         let short_sha = sha.chars().take(7).collect::<String>();
         let message = item["commit"]["message"]
             .as_str()
@@ -251,12 +258,14 @@ fn process_page(
             .unwrap_or("")
             .to_string();
 
-        let entry = repos.entry(repo_name.clone()).or_insert_with(|| RepoCommits {
-            name_with_owner: repo_name.clone(),
-            url: repo_url,
-            commit_count: 0,
-            commits: Vec::new(),
-        });
+        let entry = repos
+            .entry(repo_name.clone())
+            .or_insert_with(|| RepoCommits {
+                name_with_owner: repo_name.clone(),
+                url: repo_url,
+                commit_count: 0,
+                commits: Vec::new(),
+            });
         entry.commit_count += 1;
         entry.commits.push(CommitDetail {
             sha,
@@ -266,5 +275,146 @@ fn process_page(
             authored_at,
             is_merge,
         });
+    }
+    Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+struct CommitFile {
+    filename: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct CommitFilesResponse {
+    files: Option<Vec<CommitFile>>,
+}
+
+fn commit_has_code_changes(repo_name: &str, sha: &str) -> Result<bool, String> {
+    let files = fetch_commit_files(repo_name, sha)?;
+    Ok(files.iter().any(|path| !is_documentation_path(path)))
+}
+
+fn fetch_commit_files(repo_name: &str, sha: &str) -> Result<Vec<String>, String> {
+    if repo_name.is_empty() || sha.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let endpoint = format!("/repos/{repo_name}/commits/{sha}");
+    let output = Command::new("gh")
+        .arg("api")
+        .arg(endpoint)
+        .output()
+        .map_err(|e| format!("failed to invoke gh: {e}"))?;
+
+    if !output.status.success() {
+        return Err(format!(
+            "gh exited with {} while fetching commit files: {}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+
+    let response: CommitFilesResponse = serde_json::from_slice(&output.stdout)
+        .map_err(|e| format!("invalid commit JSON from gh: {e}"))?;
+
+    Ok(response
+        .files
+        .unwrap_or_default()
+        .into_iter()
+        .map(|file| file.filename)
+        .collect())
+}
+
+fn is_documentation_path(path: &str) -> bool {
+    const DOC_DIRECTORIES: &[&str] = &[
+        "doc",
+        "docs",
+        "documentation",
+        "guides",
+        "manual",
+        "manuals",
+        "wiki",
+    ];
+    const DOC_EXTENSIONS: &[&str] = &[
+        "adoc", "asciidoc", "md", "mdx", "rst", "tex", "textile", "wiki",
+    ];
+    const DOC_FILENAMES: &[&str] = &[
+        "authors",
+        "changelog",
+        "changes",
+        "code_of_conduct",
+        "contributing",
+        "copying",
+        "faq",
+        "history",
+        "license",
+        "notice",
+        "readme",
+        "security",
+        "support",
+    ];
+
+    let normalized = path.replace('\\', "/").to_ascii_lowercase();
+    let parts = normalized
+        .split('/')
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>();
+    let Some(file_name) = parts.last() else {
+        return false;
+    };
+
+    if parts.iter().any(|part| DOC_DIRECTORIES.contains(part)) {
+        return true;
+    }
+
+    if matches!(parts.first(), Some(&".github"))
+        && matches!(
+            parts.get(1).copied(),
+            Some("discussion_template" | "issue_template" | "pull_request_template")
+        )
+    {
+        return true;
+    }
+
+    let stem = file_name
+        .split_once('.')
+        .map(|(stem, _)| stem)
+        .unwrap_or(file_name);
+    if DOC_FILENAMES.contains(file_name)
+        || DOC_FILENAMES.contains(&stem)
+        || DOC_FILENAMES
+            .iter()
+            .any(|name| file_name.starts_with(&format!("{name}-")))
+    {
+        return true;
+    }
+
+    file_name
+        .rsplit_once('.')
+        .map(|(_, extension)| DOC_EXTENSIONS.contains(&extension))
+        .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_documentation_path;
+
+    #[test]
+    fn detects_common_documentation_files() {
+        assert!(is_documentation_path("README.md"));
+        assert!(is_documentation_path("docs/architecture.png"));
+        assert!(is_documentation_path("Documentation/guide.adoc"));
+        assert!(is_documentation_path(
+            ".github/ISSUE_TEMPLATE/bug_report.yml"
+        ));
+        assert!(is_documentation_path("LICENSE-MIT"));
+    }
+
+    #[test]
+    fn keeps_code_and_workflow_paths_countable() {
+        assert!(!is_documentation_path("src/main.rs"));
+        assert!(!is_documentation_path("src/components/Dashboard.tsx"));
+        assert!(!is_documentation_path(".github/workflows/ci.yml"));
+        assert!(!is_documentation_path("package-lock.json"));
     }
 }

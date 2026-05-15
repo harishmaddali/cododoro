@@ -37,12 +37,13 @@ export function Settings({ settings, onChange }: Props) {
       </Section>
 
       {/* Counting rules */}
-      <Section title="Counting rules" subtitle="How commits authored by you are counted.">
+      <Section title="Counting rules" subtitle="Docs-only commits are skipped automatically.">
         <Toggle
           label="Only non-merge commits"
-          description="Skip commits with more than one parent."
-          checked={settings.onlyNonMergeCommits}
-          onChange={(v) => update("onlyNonMergeCommits", v)}
+          description="Always skip commits with more than one parent."
+          checked
+          disabled
+          onChange={() => update("onlyNonMergeCommits", true)}
         />
       </Section>
 
@@ -167,12 +168,14 @@ function Toggle({
   label,
   description,
   checked,
+  disabled = false,
   onChange,
   children,
 }: {
   label: string;
   description: string;
   checked: boolean;
+  disabled?: boolean;
   onChange: (v: boolean) => void;
   children?: React.ReactNode;
 }) {
@@ -198,8 +201,9 @@ function Toggle({
         <button
           role="switch"
           aria-checked={checked}
+          disabled={disabled}
           onClick={() => onChange(!checked)}
-          className="relative shrink-0 mt-0.5 rounded-full transition-colors duration-200 focus:outline-none focus-visible:ring-2"
+          className="relative shrink-0 mt-0.5 rounded-full transition-colors duration-200 focus:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-70"
           style={{
             width: 36,
             height: 21,

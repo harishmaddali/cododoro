@@ -18,7 +18,8 @@ pub fn fetch_contributions(
     state: tauri::State<'_, Arc<SchedulerState>>,
     only_non_merge: bool,
 ) -> Result<ContributionsSnapshot, String> {
-    let snap = gh::fetch(only_non_merge)?;
+    let _ = only_non_merge;
+    let snap = gh::fetch(true)?;
     let goal = state
         .settings
         .lock()
@@ -35,8 +36,9 @@ pub fn fetch_contributions(
 pub fn apply_settings(
     app: AppHandle,
     state: tauri::State<'_, Arc<SchedulerState>>,
-    settings: Settings,
+    mut settings: Settings,
 ) -> Result<(), String> {
+    settings.only_non_merge_commits = true;
     let goal = settings.daily_goal;
     *state.settings.lock().unwrap() = Some(settings);
     if let Some(snap) = state.last_snapshot.lock().unwrap().as_ref() {

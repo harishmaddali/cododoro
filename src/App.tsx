@@ -117,23 +117,33 @@ export default function App() {
   return (
     <div className="flex h-full flex-col" style={{ background: "var(--bg-app)" }}>
       {/* Header with title-bar drag region — 52px top padding clears the Overlay traffic lights */}
-      <div className="flex items-center justify-between px-5 pt-[52px] pb-0 gap-4">
-        {/* Left: identity (draggable) */}
+      <div
+        className="flex items-center justify-between px-5 pt-[52px] pb-0 gap-4"
+        data-tauri-drag-region
+        style={{ userSelect: "none" }}
+      >
+        {/* Left: identity (draggable - children inherit drag region via attribute) */}
         <div
-          className="flex items-center gap-2.5 flex-1 pointer-events-none select-none"
+          className="flex items-center gap-2.5 flex-1 select-none"
           data-tauri-drag-region
-          style={{ userSelect: "none" }}
         >
           <div
             className="h-5 w-5 rounded"
             style={{ background: "var(--accent)" }}
+            data-tauri-drag-region
           />
-          <div>
-            <p className="text-[13px] font-semibold text-primary leading-tight">
+          <div data-tauri-drag-region>
+            <p
+              className="text-[13px] font-semibold text-primary leading-tight"
+              data-tauri-drag-region
+            >
               Codeodoro
             </p>
             {ghStatus.login && (
-              <p className="text-[11px] text-secondary leading-none mt-0.5">
+              <p
+                className="text-[11px] text-secondary leading-none mt-0.5"
+                data-tauri-drag-region
+              >
                 @{ghStatus.login}
               </p>
             )}
@@ -145,7 +155,6 @@ export default function App() {
           className="flex gap-0.5 rounded-[8px] p-0.5 flex-shrink-0"
           style={{
             background: "rgba(120,120,128,0.14)",
-            pointerEvents: "auto",
           }}
         >
           {(["dashboard", "settings"] as View[]).map((v) => (

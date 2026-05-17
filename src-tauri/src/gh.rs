@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 use std::process::Command;
+use std::time::Duration;
 
 use chrono::{Local, TimeZone, Utc};
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Clone)]
@@ -12,10 +14,8 @@ pub struct GhStatus {
     pub error: Option<String>,
 }
 
-pub fn check_status() -> GhStatus {
-    let version = Command::new("gh").arg("--version").output();
-    let installed = matches!(&version, Ok(out) if out.status.success());
-    if !installed {
+pub async fn check_status() -> GhStatus {
+    if !check_cli_installed().await {
         return GhStatus {
             installed: false,
             authenticated: false,
@@ -24,40 +24,42 @@ pub fn check_status() -> GhStatus {
         };
     }
 
-    let auth = Command::new("gh")
-        .args(["api", "user", "--jq", ".login"])
-        .output();
-
-    match auth {
-        Ok(out) if out.status.success() => {
-            let login = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if login.is_empty() {
-                GhStatus {
-                    installed: true,
-                    authenticated: false,
-                    login: None,
-                    error: Some("gh returned empty login".into()),
-                }
-            } else {
-                GhStatus {
-                    installed: true,
-                    authenticated: true,
-                    login: Some(login),
-                    error: None,
-                }
-            }
+    let token = match fetch_cli_token().await {
+        Ok(token) => token,
+        Err(e) => {
+            return GhStatus {
+                installed: true,
+                authenticated: false,
+                login: None,
+                error: Some(e),
+            };
         }
-        Ok(out) => GhStatus {
+    };
+
+    let api = match GitHubApi::new(token) {
+        Ok(api) => api,
+        Err(e) => {
+            return GhStatus {
+                installed: true,
+                authenticated: false,
+                login: None,
+                error: Some(e),
+            };
+        }
+    };
+
+    match api.fetch_login().await {
+        Ok(login) => GhStatus {
             installed: true,
-            authenticated: false,
-            login: None,
-            error: Some(String::from_utf8_lossy(&out.stderr).trim().to_string()),
+            authenticated: true,
+            login: Some(login),
+            error: None,
         },
         Err(e) => GhStatus {
             installed: true,
             authenticated: false,
             login: None,
-            error: Some(format!("gh invocation failed: {e}")),
+            error: Some(e),
         },
     }
 }
@@ -100,9 +102,13 @@ pub struct ContributionsSnapshot {
 
 const SAFETY_PAGE_CAP: u32 = 10;
 const PAGE_SIZE: u32 = 100;
+const GITHUB_API_URL: &str = "https://api.github.com";
+const REQUEST_TIMEOUT_SECS: u64 = 30;
 
-pub fn fetch(only_non_merge: bool) -> Result<ContributionsSnapshot, String> {
-    let login = fetch_login()?;
+pub async fn fetch(only_non_merge: bool) -> Result<ContributionsSnapshot, String> {
+    let token = fetch_cli_token().await?;
+    let api = GitHubApi::new(token)?;
+    let login = api.fetch_login().await?;
 
     let now_local = Local::now();
     let today = now_local.date_naive();
@@ -125,17 +131,17 @@ pub fn fetch(only_non_merge: bool) -> Result<ContributionsSnapshot, String> {
 
     let query = format!("author:{login} author-date:{start_utc}..{end_utc}");
 
-    let first = search_commits(&query, 1)?;
+    let first = api.search_commits(&query, 1).await?;
     let total = first["total_count"].as_u64().unwrap_or(0) as u32;
 
     let mut count = 0u32;
     let mut repos: BTreeMap<String, RepoCommits> = BTreeMap::new();
-    process_page(&first, only_non_merge, &mut count, &mut repos)?;
+    process_page(&api, &first, only_non_merge, &mut count, &mut repos).await?;
 
     let pages = total.div_ceil(PAGE_SIZE).min(SAFETY_PAGE_CAP);
     for page in 2..=pages {
-        let json = search_commits(&query, page)?;
-        process_page(&json, only_non_merge, &mut count, &mut repos)?;
+        let json = api.search_commits(&query, page).await?;
+        process_page(&api, &json, only_non_merge, &mut count, &mut repos).await?;
     }
 
     let mut repo_list: Vec<RepoCommits> = repos.into_values().collect();
@@ -159,58 +165,138 @@ pub fn fetch(only_non_merge: bool) -> Result<ContributionsSnapshot, String> {
     })
 }
 
-fn fetch_login() -> Result<String, String> {
-    let out = Command::new("gh")
-        .args(["api", "user", "--jq", ".login"])
-        .output()
-        .map_err(|e| format!("failed to invoke gh: {e}"))?;
-    if !out.status.success() {
-        return Err(format!(
-            "gh auth failed: {}",
-            String::from_utf8_lossy(&out.stderr).trim()
-        ));
-    }
-    let login = String::from_utf8_lossy(&out.stdout).trim().to_string();
-    if login.is_empty() {
-        return Err("gh returned empty login".into());
-    }
-    Ok(login)
+struct GitHubApi {
+    client: Client,
+    token: String,
 }
 
-fn search_commits(query: &str, page: u32) -> Result<serde_json::Value, String> {
-    let output = Command::new("gh")
-        .arg("api")
-        .arg("-X")
-        .arg("GET")
-        .arg("/search/commits")
-        .arg("-f")
-        .arg(format!("q={query}"))
-        .arg("-f")
-        .arg(format!("per_page={PAGE_SIZE}"))
-        .arg("-F")
-        .arg(format!("page={page}"))
-        .output()
-        .map_err(|e| format!("failed to invoke gh: {e}"))?;
+impl GitHubApi {
+    fn new(token: String) -> Result<Self, String> {
+        let client = Client::builder()
+            .user_agent("Codeodoro")
+            .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
+            .build()
+            .map_err(|e| format!("failed to build GitHub client: {e}"))?;
+
+        Ok(Self { client, token })
+    }
+
+    async fn fetch_login(&self) -> Result<String, String> {
+        let json = self.get_json("/user", &[]).await?;
+        let login = json["login"]
+            .as_str()
+            .ok_or_else(|| "GitHub user response did not include login".to_string())?
+            .to_string();
+        if login.is_empty() {
+            return Err("GitHub returned empty login".into());
+        }
+        Ok(login)
+    }
+
+    async fn search_commits(&self, query: &str, page: u32) -> Result<serde_json::Value, String> {
+        self.get_json(
+            "/search/commits",
+            &[
+                ("q", query.to_string()),
+                ("per_page", PAGE_SIZE.to_string()),
+                ("page", page.to_string()),
+            ],
+        )
+        .await
+    }
+
+    async fn fetch_commit_files(&self, repo_name: &str, sha: &str) -> Result<Vec<String>, String> {
+        if repo_name.is_empty() || sha.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let endpoint = format!("/repos/{repo_name}/commits/{sha}");
+        let json = self.get_json(&endpoint, &[]).await?;
+        let response: CommitFilesResponse = serde_json::from_value(json)
+            .map_err(|e| format!("invalid commit JSON from GitHub: {e}"))?;
+
+        Ok(response
+            .files
+            .unwrap_or_default()
+            .into_iter()
+            .map(|file| file.filename)
+            .collect())
+    }
+
+    async fn get_json(
+        &self,
+        path: &str,
+        query: &[(&str, String)],
+    ) -> Result<serde_json::Value, String> {
+        let url = format!("{GITHUB_API_URL}{path}");
+        let mut request = self
+            .client
+            .get(url)
+            .bearer_auth(&self.token)
+            .header("Accept", "application/vnd.github+json")
+            .header("X-GitHub-Api-Version", "2022-11-28");
+
+        if !query.is_empty() {
+            request = request.query(query);
+        }
+
+        let response = request
+            .send()
+            .await
+            .map_err(|e| format!("GitHub request failed: {e}"))?;
+        let status = response.status();
+        let text = response
+            .text()
+            .await
+            .map_err(|e| format!("failed to read GitHub response: {e}"))?;
+        let json: serde_json::Value =
+            serde_json::from_str(&text).map_err(|e| format!("invalid JSON from GitHub: {e}"))?;
+
+        if !status.is_success() {
+            let message = json
+                .get("message")
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| text.trim());
+            return Err(format!("GitHub API {status}: {message}"));
+        }
+
+        Ok(json)
+    }
+}
+
+async fn fetch_cli_token() -> Result<String, String> {
+    let output = tauri::async_runtime::spawn_blocking(|| {
+        Command::new("gh").args(["auth", "token"]).output()
+    })
+    .await
+    .map_err(|e| format!("failed to read gh auth token: {e}"))?
+    .map_err(|e| format!("failed to invoke gh auth token: {e}"))?;
 
     if !output.status.success() {
         return Err(format!(
-            "gh exited with {}: {}",
-            output.status,
+            "gh auth token failed: {}",
             String::from_utf8_lossy(&output.stderr).trim()
         ));
     }
 
-    let json: serde_json::Value =
-        serde_json::from_slice(&output.stdout).map_err(|e| format!("invalid JSON from gh: {e}"))?;
-
-    if let Some(message) = json.get("message").and_then(|v| v.as_str()) {
-        return Err(format!("GitHub error: {message}"));
+    let token = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if token.is_empty() {
+        return Err("gh auth token returned empty token".into());
     }
-
-    Ok(json)
+    Ok(token)
 }
 
-fn process_page(
+async fn check_cli_installed() -> bool {
+    match tauri::async_runtime::spawn_blocking(|| Command::new("gh").arg("--version").output())
+        .await
+    {
+        Ok(Ok(out)) => out.status.success(),
+        _ => false,
+    }
+}
+
+async fn process_page(
+    api: &GitHubApi,
     json: &serde_json::Value,
     only_non_merge: bool,
     count: &mut u32,
@@ -234,12 +320,6 @@ fn process_page(
         };
         let repo_name = repo_name.to_string();
         let sha = sha.to_string();
-        if !commit_has_code_changes(&repo_name, &sha)? {
-            continue;
-        }
-
-        *count += 1;
-
         let repo_url = item["repository"]["html_url"]
             .as_str()
             .unwrap_or("")
@@ -257,6 +337,12 @@ fn process_page(
             .as_str()
             .unwrap_or("")
             .to_string();
+
+        if !commit_has_code_changes(api, &repo_name, &sha).await? {
+            continue;
+        }
+
+        *count += 1;
 
         let entry = repos
             .entry(repo_name.clone())
@@ -289,40 +375,13 @@ struct CommitFilesResponse {
     files: Option<Vec<CommitFile>>,
 }
 
-fn commit_has_code_changes(repo_name: &str, sha: &str) -> Result<bool, String> {
-    let files = fetch_commit_files(repo_name, sha)?;
+async fn commit_has_code_changes(
+    api: &GitHubApi,
+    repo_name: &str,
+    sha: &str,
+) -> Result<bool, String> {
+    let files = api.fetch_commit_files(repo_name, sha).await?;
     Ok(files.iter().any(|path| !is_documentation_path(path)))
-}
-
-fn fetch_commit_files(repo_name: &str, sha: &str) -> Result<Vec<String>, String> {
-    if repo_name.is_empty() || sha.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    let endpoint = format!("/repos/{repo_name}/commits/{sha}");
-    let output = Command::new("gh")
-        .arg("api")
-        .arg(endpoint)
-        .output()
-        .map_err(|e| format!("failed to invoke gh: {e}"))?;
-
-    if !output.status.success() {
-        return Err(format!(
-            "gh exited with {} while fetching commit files: {}",
-            output.status,
-            String::from_utf8_lossy(&output.stderr).trim()
-        ));
-    }
-
-    let response: CommitFilesResponse = serde_json::from_slice(&output.stdout)
-        .map_err(|e| format!("invalid commit JSON from gh: {e}"))?;
-
-    Ok(response
-        .files
-        .unwrap_or_default()
-        .into_iter()
-        .map(|file| file.filename)
-        .collect())
 }
 
 fn is_documentation_path(path: &str) -> bool {

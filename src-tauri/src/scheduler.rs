@@ -50,7 +50,7 @@ pub fn refresh_now(app: &AppHandle, state: &Arc<SchedulerState>) {
         .as_ref()
         .map(|s| s.only_non_merge_commits)
         .unwrap_or(true);
-    if let Ok(snap) = gh::fetch(only_non_merge) {
+    if let Ok(snap) = tauri::async_runtime::block_on(gh::fetch(only_non_merge)) {
         let daily_goal = state
             .settings
             .lock()
@@ -107,7 +107,8 @@ fn tick(app: &AppHandle, state: &SchedulerState) {
         }
     };
     if needs_fetch {
-        if let Ok(snap) = gh::fetch(settings.only_non_merge_commits) {
+        if let Ok(snap) = tauri::async_runtime::block_on(gh::fetch(settings.only_non_merge_commits))
+        {
             tray::update_progress(app, snap.commit_count, settings.daily_goal);
             *state.last_snapshot.lock().unwrap() = Some(snap);
         }

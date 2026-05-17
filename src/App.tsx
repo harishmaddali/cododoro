@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { GearSix, SquaresFour } from "@phosphor-icons/react";
 import { listen } from "@tauri-apps/api/event";
 import { Dashboard } from "./components/Dashboard";
@@ -24,18 +24,29 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const refreshInFlightRef = useRef<Promise<void> | null>(null);
 
   const refreshContributions = useCallback(async (onlyNonMerge: boolean) => {
-    setRefreshing(true);
-    setError(null);
-    try {
-      const data = await fetchContributions(onlyNonMerge);
-      setSnapshot(data);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setRefreshing(false);
+    if (refreshInFlightRef.current) {
+      return refreshInFlightRef.current;
     }
+
+    const refresh = (async () => {
+      setRefreshing(true);
+      setError(null);
+      try {
+        const data = await fetchContributions(onlyNonMerge);
+        setSnapshot(data);
+      } catch (e) {
+        setError(String(e));
+      } finally {
+        setRefreshing(false);
+        refreshInFlightRef.current = null;
+      }
+    })();
+
+    refreshInFlightRef.current = refresh;
+    return refresh;
   }, []);
 
   const refreshGhStatus = useCallback(async () => {
@@ -50,10 +61,10 @@ export default function App() {
       setSettings(loaded);
       await applySettings(loaded).catch(() => undefined);
       const status = await refreshGhStatus();
-      if (status.authenticated) {
-        await refreshContributions(loaded.onlyNonMergeCommits);
-      }
       setLoading(false);
+      if (status.authenticated) {
+        refreshContributions(loaded.onlyNonMergeCommits);
+      }
       checkForUpdates(true).catch(() => undefined);
     })();
   }, [refreshContributions, refreshGhStatus]);

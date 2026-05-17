@@ -8,18 +8,19 @@ use crate::scheduler::{SchedulerState, Settings};
 use crate::tray;
 
 #[tauri::command]
-pub fn check_gh_status() -> GhStatus {
-    gh::check_status()
+pub async fn check_gh_status() -> GhStatus {
+    gh::check_status().await
 }
 
 #[tauri::command]
-pub fn fetch_contributions(
+pub async fn fetch_contributions(
     app: AppHandle,
     state: tauri::State<'_, Arc<SchedulerState>>,
     only_non_merge: bool,
 ) -> Result<ContributionsSnapshot, String> {
+    let state = state.inner().clone();
     let _ = only_non_merge;
-    let snap = gh::fetch(true)?;
+    let snap = gh::fetch(true).await?;
     let goal = state
         .settings
         .lock()

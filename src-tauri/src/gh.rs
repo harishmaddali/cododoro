@@ -173,7 +173,7 @@ struct GitHubApi {
 impl GitHubApi {
     fn new(token: String) -> Result<Self, String> {
         let client = Client::builder()
-            .user_agent("Codeodoro")
+            .user_agent("cododoro")
             .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
             .build()
             .map_err(|e| format!("failed to build GitHub client: {e}"))?;

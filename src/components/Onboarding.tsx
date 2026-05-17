@@ -40,7 +40,7 @@ export function Onboarding({ status, onRecheck }: Props) {
           </div>
           <div>
             <h1 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
-              Welcome to Codeodoro
+              Welcome to cododoro
             </h1>
             <p className="text-[11px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
               Daily commit goals, powered by the gh CLI
@@ -56,7 +56,7 @@ export function Onboarding({ status, onRecheck }: Props) {
               title="Install the GitHub CLI"
               body={
                 <>
-                  Codeodoro talks to GitHub through the{" "}
+                  cododoro talks to GitHub through the{" "}
                   <code
                     className="rounded px-1 py-0.5 text-[12px] font-mono"
                     style={{ background: "var(--bg-code)", color: "var(--text-primary)" }}

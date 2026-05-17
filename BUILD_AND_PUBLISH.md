@@ -1,6 +1,6 @@
-# Building and Publishing Codeodoro
+# Building and Publishing cododoro
 
-This guide covers how to build the Codeodoro desktop application and publish it to users with **automatic updates via GitHub Releases**.
+This guide covers how to build the cododoro desktop application and publish it to users with **automatic updates via GitHub Releases**.
 
 ## Prerequisites
 
@@ -55,7 +55,7 @@ npm run build
 
 ## Publishing to Users with Automatic Updates
 
-Codeodoro is configured for **automatic updates via GitHub Releases**. Users will be notified when a new version is available and can install it with one click.
+cododoro is configured for **automatic updates via GitHub Releases**. Users will be notified when a new version is available and can install it with one click.
 
 ### Step 1: Generate Updater Keypair
 
@@ -133,7 +133,7 @@ When users run the app:
 
 ```
 ┌─────────────────────────────────────────┐
-│   User launches Codeodoro v0.1.0        │
+│   User launches cododoro v0.1.0        │
 └────────────────┬────────────────────────┘
                  │
                  ▼
@@ -174,7 +174,7 @@ gh release create v0.2.0 \
   src-tauri/target/release/bundle/macos-arm64/*.dmg \
   src-tauri/target/release/bundle/windows/*.msi \
   src-tauri/target/release/bundle/linux/*.AppImage \
-  --title "Codeodoro v0.2.0" \
+  --title "cododoro v0.2.0" \
   --notes "See assets to download and install"
 ```
 
@@ -283,7 +283,7 @@ git commit -m "Remove private key from history"
 **"Keypair generation failed"**
 ```bash
 # Ensure you're in the repo root
-cd /path/to/codeodoro
+cd /path/to/cododoro
 ./scripts/setup-updater.sh
 ```
 
@@ -335,7 +335,7 @@ Edit in `src-tauri/tauri.conf.json` under `app.windows[0]`
 - [ ] Update version: `npm version minor`
 - [ ] Push with tags: `git push origin main --tags`
 - [ ] Monitor GitHub Actions for successful build
-- [ ] Verify release created: https://github.com/harishmaddali/codeodoro/releases
+- [ ] Verify release created: https://github.com/harishmaddali/cododoro/releases
 
 ## Resources
 

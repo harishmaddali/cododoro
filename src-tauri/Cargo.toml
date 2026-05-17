@@ -1,12 +1,12 @@
 [package]
-name = "codeodoro"
+name = "cododoro"
 version = "0.1.0"
 description = "Daily commit goals via the GitHub CLI"
 authors = ["you"]
 edition = "2021"
 
 [lib]
-name = "codeodoro_lib"
+name = "cododoro_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

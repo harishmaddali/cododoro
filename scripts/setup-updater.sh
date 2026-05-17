@@ -5,7 +5,7 @@
 
 set -e
 
-echo "🔐 Codeodoro Updater Setup"
+echo "🔐 cododoro Updater Setup"
 echo "=========================="
 echo ""
 

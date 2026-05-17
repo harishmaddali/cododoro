@@ -26,7 +26,7 @@ export function TitleBar() {
         className="text-[13px] font-semibold"
         style={{ color: "var(--text-primary)" }}
       >
-        Codeodoro
+        cododoro
       </span>
     </div>
   );

@@ -6,7 +6,7 @@ use tauri::{AppHandle, Manager};
 
 use crate::scheduler::{self, SchedulerState};
 
-pub const TRAY_ID: &str = "codeodoro-tray";
+pub const TRAY_ID: &str = "cododoro-tray";
 
 pub fn install(app: &AppHandle) -> tauri::Result<()> {
     let menu = build_menu(app, "—")?;
@@ -19,7 +19,7 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon)
         .menu(&menu)
-        .tooltip("Codeodoro")
+        .tooltip("cododoro")
         .title("—")
         .on_menu_event(|app, event| match event.id.as_ref() {
             "open" => show_main_window(app),
@@ -60,7 +60,7 @@ pub fn update_progress(app: &AppHandle, count: u32, goal: u32) {
     };
 
     let _ = tray.set_title(Some(&title));
-    let _ = tray.set_tooltip(Some(format!("Codeodoro · {count}/{goal} commits today")));
+    let _ = tray.set_tooltip(Some(format!("cododoro · {count}/{goal} commits today")));
 
     if let Ok(menu) = build_menu(app, &progress_label) {
         let _ = tray.set_menu(Some(menu));
@@ -69,7 +69,7 @@ pub fn update_progress(app: &AppHandle, count: u32, goal: u32) {
 
 fn build_menu(app: &AppHandle, progress_label: &str) -> tauri::Result<Menu<tauri::Wry>> {
     let progress = MenuItem::with_id(app, "progress", progress_label, false, None::<&str>)?;
-    let open = MenuItem::with_id(app, "open", "Open Codeodoro", true, None::<&str>)?;
+    let open = MenuItem::with_id(app, "open", "Open cododoro", true, None::<&str>)?;
     let refresh = MenuItem::with_id(app, "refresh", "Refresh Now", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     Menu::with_items(app, &[&progress, &open, &refresh, &quit])

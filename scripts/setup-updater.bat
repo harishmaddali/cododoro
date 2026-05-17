@@ -4,7 +4,7 @@ REM Setup script for Tauri updater with GitHub Releases (Windows)
 setlocal enabledelayedexpansion
 
 echo.
-echo 🔐 Codeodoro Updater Setup
+echo 🔐 cododoro Updater Setup
 echo ==========================
 echo.
 

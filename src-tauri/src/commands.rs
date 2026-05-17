@@ -52,7 +52,7 @@ pub fn apply_settings(
 pub fn send_test_notification(app: AppHandle) -> Result<(), String> {
     app.notification()
         .builder()
-        .title("Codeodoro")
+        .title("cododoro")
         .body("Notifications are wired up correctly.")
         .show()
         .map_err(|e| e.to_string())

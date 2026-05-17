@@ -135,12 +135,6 @@ function RepoBreakdown({ repos }: { repos: RepoCommits[] }) {
 
   return (
     <section className="card p-0">
-      <div className="border-b border-zinc-800 px-5 py-3">
-        <h2 className="text-sm font-medium text-zinc-200">By repository</h2>
-        <p className="text-xs text-zinc-500">
-          Expand a repo to see all commits made today.
-        </p>
-      </div>
       <ul>
         {repos.map((repo) => (
           <RepoRow key={repo.nameWithOwner} repo={repo} />

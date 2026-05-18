@@ -15,18 +15,13 @@
       {
         "label": "main",
         "title": "",
-        "width": 420,
-        "height": 620,
+        "width": 400,
+        "height": 800,
         "minWidth": 380,
-        "minHeight": 500,
+        "minHeight": 600,
         "resizable": true,
         "titleBarStyle": "Overlay",
-        "hiddenTitle": true,
-        "transparent": true,
-        "windowEffects": {
-          "effects": ["sidebar"],
-          "state": "followsWindowActiveState"
-        }
+        "hiddenTitle": true
       }
     ],
     "security": {

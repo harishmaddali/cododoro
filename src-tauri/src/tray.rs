@@ -4,7 +4,8 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager};
 
-use crate::scheduler::{self, SchedulerState};
+use crate::scheduler;
+use crate::state::AppState;
 
 pub const TRAY_ID: &str = "cododoro-tray";
 
@@ -26,7 +27,7 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
             "refresh" => {
                 let app = app.clone();
                 std::thread::spawn(move || {
-                    if let Some(state) = app.try_state::<Arc<SchedulerState>>() {
+                    if let Some(state) = app.try_state::<Arc<AppState>>() {
                         scheduler::refresh_now(&app, state.inner());
                     }
                 });

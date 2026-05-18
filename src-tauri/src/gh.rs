@@ -2,15 +2,20 @@ use std::collections::BTreeMap;
 use std::process::Command;
 use std::time::Duration;
 
-use chrono::{Local, TimeZone, Utc};
-use reqwest::Client;
+use chrono::{Datelike, Local, NaiveDate, TimeZone, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+
+use crate::db::{Config, Filters};
 
 #[derive(Debug, Serialize, Clone)]
 pub struct GhStatus {
     pub installed: bool,
     pub authenticated: bool,
     pub login: Option<String>,
+    pub name: Option<String>,
+    #[serde(rename = "avatarUrl")]
+    pub avatar_url: Option<String>,
     pub error: Option<String>,
 }
 
@@ -20,6 +25,8 @@ pub async fn check_status() -> GhStatus {
             installed: false,
             authenticated: false,
             login: None,
+            name: None,
+            avatar_url: None,
             error: Some("gh CLI not found on PATH".into()),
         };
     }
@@ -31,6 +38,8 @@ pub async fn check_status() -> GhStatus {
                 installed: true,
                 authenticated: false,
                 login: None,
+                name: None,
+                avatar_url: None,
                 error: Some(e),
             };
         }
@@ -43,25 +52,38 @@ pub async fn check_status() -> GhStatus {
                 installed: true,
                 authenticated: false,
                 login: None,
+                name: None,
+                avatar_url: None,
                 error: Some(e),
             };
         }
     };
 
-    match api.fetch_login().await {
-        Ok(login) => GhStatus {
+    match api.fetch_viewer().await {
+        Ok(v) => GhStatus {
             installed: true,
             authenticated: true,
-            login: Some(login),
+            login: Some(v.login),
+            name: v.name,
+            avatar_url: Some(v.avatar_url),
             error: None,
         },
         Err(e) => GhStatus {
             installed: true,
             authenticated: false,
             login: None,
+            name: None,
+            avatar_url: None,
             error: Some(e),
         },
     }
+}
+
+#[derive(Debug, Clone)]
+struct Viewer {
+    login: String,
+    name: Option<String>,
+    avatar_url: String,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -70,127 +92,507 @@ pub struct CommitDetail {
     #[serde(rename = "shortSha")]
     pub short_sha: String,
     pub message: String,
+    pub repo: String,
     pub url: String,
     #[serde(rename = "authoredAt")]
     pub authored_at: String,
-    #[serde(rename = "isMerge")]
-    pub is_merge: bool,
 }
 
 #[derive(Debug, Serialize, Clone)]
-pub struct RepoCommits {
+pub struct DayCount {
+    pub date: String,
+    pub count: u32,
+    pub level: u8,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct RepoEntry {
     #[serde(rename = "nameWithOwner")]
     pub name_with_owner: String,
+    pub owner: String,
+    pub name: String,
+    pub language: Option<String>,
+    pub color: String,
     pub url: String,
-    #[serde(rename = "commitCount")]
-    pub commit_count: u32,
-    pub commits: Vec<CommitDetail>,
+    pub today: u32,
+    pub week: u32,
+    pub tracked: bool,
+    pub goal: u32,
 }
 
 #[derive(Debug, Serialize, Clone)]
-pub struct ContributionsSnapshot {
-    pub login: String,
+pub struct BestDay {
     pub date: String,
-    #[serde(rename = "commitCount")]
-    pub commit_count: u32,
-    #[serde(rename = "onlyNonMerge")]
-    pub only_non_merge: bool,
+    pub count: u32,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct AppSnapshot {
+    pub login: String,
+    pub name: Option<String>,
+    #[serde(rename = "avatarUrl")]
+    pub avatar_url: String,
+    pub date: String,
     #[serde(rename = "fetchedAt")]
     pub fetched_at: String,
-    pub repos: Vec<RepoCommits>,
+    #[serde(rename = "todayCount")]
+    pub today_count: u32,
+    #[serde(rename = "dailyGoal")]
+    pub daily_goal: u32,
+    pub streak: u32,
+    #[serde(rename = "longestStreak")]
+    pub longest_streak: u32,
+    #[serde(rename = "longestRange")]
+    pub longest_range: String,
+    #[serde(rename = "yearTotal")]
+    pub year_total: u32,
+    #[serde(rename = "bestDay")]
+    pub best_day: Option<BestDay>,
+    pub days: Vec<DayCount>,
+    #[serde(rename = "recentCommits")]
+    pub recent_commits: Vec<CommitDetail>,
+    pub repos: Vec<RepoEntry>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct RepoMeta {
+    #[serde(rename = "nameWithOwner")]
+    pub name_with_owner: String,
+    pub owner: String,
+    pub name: String,
+    pub language: Option<String>,
+    pub color: String,
+    pub url: String,
 }
 
 const SAFETY_PAGE_CAP: u32 = 10;
+const WEEK_PAGE_CAP: u32 = 5;
 const PAGE_SIZE: u32 = 100;
 const GITHUB_API_URL: &str = "https://api.github.com";
+const GITHUB_GRAPHQL_URL: &str = "https://api.github.com/graphql";
 const REQUEST_TIMEOUT_SECS: u64 = 30;
 
-pub async fn fetch(only_non_merge: bool) -> Result<ContributionsSnapshot, String> {
+/// Fetch everything the UI needs and fold it into a single snapshot using the
+/// user's stored configuration (goal, tracked repos, commit filters, schedule).
+pub async fn build_snapshot(config: &Config) -> Result<AppSnapshot, String> {
     let token = fetch_cli_token().await?;
     let api = GitHubApi::new(token)?;
-    let login = api.fetch_login().await?;
+
+    let viewer = api.fetch_viewer().await?;
+    let calendar = api.fetch_contribution_calendar().await?;
+    let repo_meta = api.fetch_user_repos().await.unwrap_or_default();
 
     let now_local = Local::now();
     let today = now_local.date_naive();
-    let start_local = Local
+
+    // Today's filtered commits (per-repo + recent list).
+    let (today_count, today_by_repo, recent_commits) =
+        fetch_today(&api, &viewer.login, &config.filters, today).await?;
+
+    // Lightweight last-7-day per-repo counts (no per-commit file inspection).
+    let week_by_repo = fetch_week(&api, &viewer.login, &config.filters, today)
+        .await
+        .unwrap_or_default();
+
+    let days = to_day_counts(&calendar);
+    let year_total = days.iter().map(|d| d.count).sum();
+    let best_day = days
+        .iter()
+        .filter(|d| d.count > 0)
+        .max_by_key(|d| d.count)
+        .map(|d| BestDay {
+            date: d.date.clone(),
+            count: d.count,
+        });
+    let streak = current_streak(&days, &config.streak_days, &today);
+    let (longest_streak, longest_range) = longest_streak(&days, &config.streak_days);
+
+    let repos = merge_repos(&repo_meta, &today_by_repo, &week_by_repo, config);
+
+    Ok(AppSnapshot {
+        login: viewer.login,
+        name: viewer.name,
+        avatar_url: viewer.avatar_url,
+        date: today.format("%Y-%m-%d").to_string(),
+        fetched_at: now_local.to_rfc3339(),
+        today_count,
+        daily_goal: config.daily_goal,
+        streak,
+        longest_streak,
+        longest_range,
+        year_total,
+        best_day,
+        days,
+        recent_commits,
+        repos,
+    })
+}
+
+pub async fn list_repos() -> Result<Vec<RepoMeta>, String> {
+    let token = fetch_cli_token().await?;
+    let api = GitHubApi::new(token)?;
+    api.fetch_user_repos().await
+}
+
+async fn fetch_today(
+    api: &GitHubApi,
+    login: &str,
+    filters: &Filters,
+    today: NaiveDate,
+) -> Result<(u32, BTreeMap<String, u32>, Vec<CommitDetail>), String> {
+    let start = Local
         .from_local_datetime(&today.and_hms_opt(0, 0, 0).expect("valid time"))
         .single()
-        .ok_or_else(|| "ambiguous local start of day".to_string())?;
-    let end_local = Local
+        .ok_or_else(|| "ambiguous local start of day".to_string())?
+        .with_timezone(&Utc)
+        .format("%Y-%m-%dT%H:%M:%SZ")
+        .to_string();
+    let end = Local
         .from_local_datetime(&today.and_hms_opt(23, 59, 59).expect("valid time"))
         .single()
-        .ok_or_else(|| "ambiguous local end of day".to_string())?;
-    let start_utc = start_local
-        .with_timezone(&Utc)
-        .format("%Y-%m-%dT%H:%M:%SZ")
-        .to_string();
-    let end_utc = end_local
+        .ok_or_else(|| "ambiguous local end of day".to_string())?
         .with_timezone(&Utc)
         .format("%Y-%m-%dT%H:%M:%SZ")
         .to_string();
 
-    let query = format!("author:{login} author-date:{start_utc}..{end_utc}");
-
+    let query = format!("author:{login} author-date:{start}..{end}");
     let first = api.search_commits(&query, 1).await?;
     let total = first["total_count"].as_u64().unwrap_or(0) as u32;
 
     let mut count = 0u32;
-    let mut repos: BTreeMap<String, RepoCommits> = BTreeMap::new();
-    process_page(&api, &first, only_non_merge, &mut count, &mut repos).await?;
+    let mut by_repo: BTreeMap<String, u32> = BTreeMap::new();
+    let mut commits: Vec<CommitDetail> = Vec::new();
+    process_today_page(api, &first, filters, &mut count, &mut by_repo, &mut commits).await?;
 
     let pages = total.div_ceil(PAGE_SIZE).min(SAFETY_PAGE_CAP);
     for page in 2..=pages {
         let json = api.search_commits(&query, page).await?;
-        process_page(&api, &json, only_non_merge, &mut count, &mut repos).await?;
+        process_today_page(api, &json, filters, &mut count, &mut by_repo, &mut commits).await?;
     }
 
-    let mut repo_list: Vec<RepoCommits> = repos.into_values().collect();
-    for repo in repo_list.iter_mut() {
-        repo.commits
-            .sort_by(|a, b| b.authored_at.cmp(&a.authored_at));
+    commits.sort_by(|a, b| b.authored_at.cmp(&a.authored_at));
+    commits.truncate(8);
+    Ok((count, by_repo, commits))
+}
+
+async fn fetch_week(
+    api: &GitHubApi,
+    login: &str,
+    filters: &Filters,
+    today: NaiveDate,
+) -> Result<BTreeMap<String, u32>, String> {
+    let week_ago = today - chrono::Duration::days(6);
+    let start = Local
+        .from_local_datetime(&week_ago.and_hms_opt(0, 0, 0).expect("valid time"))
+        .single()
+        .ok_or_else(|| "ambiguous local start of week".to_string())?
+        .with_timezone(&Utc)
+        .format("%Y-%m-%dT%H:%M:%SZ")
+        .to_string();
+    let now = Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+
+    let query = format!("author:{login} author-date:{start}..{now}");
+    let first = api.search_commits(&query, 1).await?;
+    let total = first["total_count"].as_u64().unwrap_or(0) as u32;
+
+    let mut by_repo: BTreeMap<String, u32> = BTreeMap::new();
+    collect_week_page(&first, filters, &mut by_repo);
+    let pages = total.div_ceil(PAGE_SIZE).min(WEEK_PAGE_CAP);
+    for page in 2..=pages {
+        let json = api.search_commits(&query, page).await?;
+        collect_week_page(&json, filters, &mut by_repo);
     }
-    repo_list.sort_by(|a, b| {
-        b.commit_count
-            .cmp(&a.commit_count)
+    Ok(by_repo)
+}
+
+fn collect_week_page(
+    json: &serde_json::Value,
+    filters: &Filters,
+    by_repo: &mut BTreeMap<String, u32>,
+) {
+    let Some(items) = json["items"].as_array() else {
+        return;
+    };
+    for item in items {
+        let is_merge = item["parents"].as_array().map(|a| a.len()).unwrap_or(0) > 1;
+        if filters.merge && is_merge {
+            continue;
+        }
+        let message = first_line(&item["commit"]["message"]);
+        if filters.revert && is_revert(&message) {
+            continue;
+        }
+        if filters.empty && is_wip(&message) {
+            continue;
+        }
+        if let Some(repo) = item["repository"]["full_name"].as_str() {
+            *by_repo.entry(repo.to_string()).or_insert(0) += 1;
+        }
+    }
+}
+
+fn merge_repos(
+    meta: &[RepoMeta],
+    today: &BTreeMap<String, u32>,
+    week: &BTreeMap<String, u32>,
+    config: &Config,
+) -> Vec<RepoEntry> {
+    let mut names: Vec<String> = meta.iter().map(|m| m.name_with_owner.clone()).collect();
+    for name in today.keys().chain(week.keys()) {
+        if !names.iter().any(|n| n == name) {
+            names.push(name.clone());
+        }
+    }
+
+    let mut repos: Vec<RepoEntry> = names
+        .into_iter()
+        .map(|full| {
+            let m = meta.iter().find(|m| m.name_with_owner == full);
+            let (owner, name) = split_repo(&full);
+            let tracked = config
+                .tracked_repos
+                .get(&full)
+                .copied()
+                .unwrap_or(m.is_some());
+            let goal = config.repo_goals.get(&full).copied().unwrap_or(0);
+            RepoEntry {
+                name_with_owner: full.clone(),
+                owner: m.map(|m| m.owner.clone()).unwrap_or(owner),
+                name: m.map(|m| m.name.clone()).unwrap_or(name),
+                language: m.and_then(|m| m.language.clone()),
+                color: m
+                    .map(|m| m.color.clone())
+                    .unwrap_or_else(|| language_color(None)),
+                url: m
+                    .map(|m| m.url.clone())
+                    .unwrap_or_else(|| format!("https://github.com/{full}")),
+                today: today.get(&full).copied().unwrap_or(0),
+                week: week.get(&full).copied().unwrap_or(0),
+                tracked,
+                goal,
+            }
+        })
+        .collect();
+
+    repos.sort_by(|a, b| {
+        b.today
+            .cmp(&a.today)
+            .then(b.week.cmp(&a.week))
             .then_with(|| a.name_with_owner.cmp(&b.name_with_owner))
     });
+    repos
+}
 
-    Ok(ContributionsSnapshot {
-        login,
-        date: today.format("%Y-%m-%d").to_string(),
-        commit_count: count,
-        only_non_merge,
-        fetched_at: now_local.to_rfc3339(),
-        repos: repo_list,
+fn split_repo(full: &str) -> (String, String) {
+    match full.split_once('/') {
+        Some((o, n)) => (o.to_string(), n.to_string()),
+        None => (String::new(), full.to_string()),
+    }
+}
+
+fn to_day_counts(weeks: &[Vec<(String, u32)>]) -> Vec<DayCount> {
+    let mut out = Vec::new();
+    for week in weeks {
+        for (date, count) in week {
+            out.push(DayCount {
+                date: date.clone(),
+                count: *count,
+                level: level_for(*count),
+            });
+        }
+    }
+    out
+}
+
+fn level_for(count: u32) -> u8 {
+    match count {
+        0 => 0,
+        1..=2 => 1,
+        3..=5 => 2,
+        6..=9 => 3,
+        _ => 4,
+    }
+}
+
+fn weekday_name(date: &str) -> Option<&'static str> {
+    let d = NaiveDate::parse_from_str(date, "%Y-%m-%d").ok()?;
+    Some(match d.weekday() {
+        chrono::Weekday::Mon => "Mon",
+        chrono::Weekday::Tue => "Tue",
+        chrono::Weekday::Wed => "Wed",
+        chrono::Weekday::Thu => "Thu",
+        chrono::Weekday::Fri => "Fri",
+        chrono::Weekday::Sat => "Sat",
+        chrono::Weekday::Sun => "Sun",
     })
 }
 
+/// Consecutive scheduled days with activity, counting back from today. Days the
+/// user chose to skip neither extend nor break the streak; an empty (but still
+/// in-progress) today does not break it either.
+fn current_streak(days: &[DayCount], schedule: &[String], today: &NaiveDate) -> u32 {
+    let today_str = today.format("%Y-%m-%d").to_string();
+    let mut streak = 0u32;
+    for day in days.iter().rev() {
+        let Some(wd) = weekday_name(&day.date) else {
+            continue;
+        };
+        let scheduled = schedule.iter().any(|s| s == wd);
+        if !scheduled {
+            continue;
+        }
+        if day.count > 0 {
+            streak += 1;
+        } else if day.date == today_str {
+            // today not done yet — don't break the chain
+            continue;
+        } else {
+            break;
+        }
+    }
+    streak
+}
+
+fn longest_streak(days: &[DayCount], schedule: &[String]) -> (u32, String) {
+    let mut best = 0u32;
+    let mut best_start = String::new();
+    let mut best_end = String::new();
+    let mut run = 0u32;
+    let mut run_start = String::new();
+    for day in days {
+        let Some(wd) = weekday_name(&day.date) else {
+            continue;
+        };
+        if !schedule.iter().any(|s| s == wd) {
+            continue;
+        }
+        if day.count > 0 {
+            if run == 0 {
+                run_start = day.date.clone();
+            }
+            run += 1;
+            if run > best {
+                best = run;
+                best_start = run_start.clone();
+                best_end = day.date.clone();
+            }
+        } else {
+            run = 0;
+        }
+    }
+    let range = if best == 0 {
+        String::new()
+    } else {
+        format!("{} — {}", pretty_month(&best_start), pretty_month(&best_end))
+    };
+    (best, range)
+}
+
+fn pretty_month(date: &str) -> String {
+    const MONTHS: [&str; 12] = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    match NaiveDate::parse_from_str(date, "%Y-%m-%d") {
+        Ok(d) => format!("{} {}", MONTHS[(d.month0()) as usize], d.year()),
+        Err(_) => date.to_string(),
+    }
+}
+
 struct GitHubApi {
-    client: Client,
+    client: reqwest::Client,
     token: String,
 }
 
 impl GitHubApi {
     fn new(token: String) -> Result<Self, String> {
-        let client = Client::builder()
+        let client = reqwest::Client::builder()
             .user_agent("cododoro")
             .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
             .build()
             .map_err(|e| format!("failed to build GitHub client: {e}"))?;
-
         Ok(Self { client, token })
     }
 
-    async fn fetch_login(&self) -> Result<String, String> {
-        let json = self.get_json("/user", &[]).await?;
-        let login = json["login"]
+    async fn fetch_viewer(&self) -> Result<Viewer, String> {
+        let json = self
+            .graphql(
+                "query { viewer { login name avatarUrl } }",
+                json!({}),
+            )
+            .await?;
+        let viewer = &json["data"]["viewer"];
+        let login = viewer["login"]
             .as_str()
-            .ok_or_else(|| "GitHub user response did not include login".to_string())?
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| "GitHub did not return a login".to_string())?
             .to_string();
-        if login.is_empty() {
-            return Err("GitHub returned empty login".into());
+        Ok(Viewer {
+            login,
+            name: viewer["name"].as_str().map(|s| s.to_string()),
+            avatar_url: viewer["avatarUrl"].as_str().unwrap_or("").to_string(),
+        })
+    }
+
+    /// Past-year daily contribution calendar grouped into weeks of
+    /// `(date, count)` tuples — drives the heatmap, streaks and trend charts.
+    async fn fetch_contribution_calendar(&self) -> Result<Vec<Vec<(String, u32)>>, String> {
+        let query = "query { viewer { contributionsCollection { contributionCalendar { \
+            weeks { contributionDays { date contributionCount } } } } } }";
+        let json = self.graphql(query, json!({})).await?;
+        let weeks = json["data"]["viewer"]["contributionsCollection"]["contributionCalendar"]
+            ["weeks"]
+            .as_array()
+            .ok_or_else(|| "GitHub did not return a contribution calendar".to_string())?;
+
+        let mut out = Vec::with_capacity(weeks.len());
+        for week in weeks {
+            let mut days = Vec::new();
+            if let Some(list) = week["contributionDays"].as_array() {
+                for d in list {
+                    let date = d["date"].as_str().unwrap_or("").to_string();
+                    let count = d["contributionCount"].as_u64().unwrap_or(0) as u32;
+                    days.push((date, count));
+                }
+            }
+            out.push(days);
         }
-        Ok(login)
+        Ok(out)
+    }
+
+    async fn fetch_user_repos(&self) -> Result<Vec<RepoMeta>, String> {
+        let json = self
+            .get_json(
+                "/user/repos",
+                &[
+                    ("per_page", "100".to_string()),
+                    ("sort", "pushed".to_string()),
+                    ("affiliation", "owner,collaborator".to_string()),
+                ],
+            )
+            .await?;
+        let items = json
+            .as_array()
+            .ok_or_else(|| "unexpected /user/repos response".to_string())?;
+        let mut repos = Vec::new();
+        for item in items {
+            if item["fork"].as_bool().unwrap_or(false) {
+                continue;
+            }
+            let Some(full) = item["full_name"].as_str() else {
+                continue;
+            };
+            let (owner, name) = split_repo(full);
+            let language = item["language"].as_str().map(|s| s.to_string());
+            repos.push(RepoMeta {
+                name_with_owner: full.to_string(),
+                owner,
+                name,
+                color: language_color(language.as_deref()),
+                language,
+                url: item["html_url"].as_str().unwrap_or("").to_string(),
+            });
+        }
+        Ok(repos)
     }
 
     async fn search_commits(&self, query: &str, page: u32) -> Result<serde_json::Value, String> {
@@ -209,18 +611,53 @@ impl GitHubApi {
         if repo_name.is_empty() || sha.is_empty() {
             return Ok(Vec::new());
         }
-
         let endpoint = format!("/repos/{repo_name}/commits/{sha}");
         let json = self.get_json(&endpoint, &[]).await?;
         let response: CommitFilesResponse = serde_json::from_value(json)
             .map_err(|e| format!("invalid commit JSON from GitHub: {e}"))?;
-
         Ok(response
             .files
             .unwrap_or_default()
             .into_iter()
             .map(|file| file.filename)
             .collect())
+    }
+
+    async fn graphql(
+        &self,
+        query: &str,
+        variables: serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
+        let response = self
+            .client
+            .post(GITHUB_GRAPHQL_URL)
+            .bearer_auth(&self.token)
+            .header("Accept", "application/vnd.github+json")
+            .json(&json!({ "query": query, "variables": variables }))
+            .send()
+            .await
+            .map_err(|e| format!("GitHub GraphQL request failed: {e}"))?;
+        let status = response.status();
+        let text = response
+            .text()
+            .await
+            .map_err(|e| format!("failed to read GitHub response: {e}"))?;
+        let json: serde_json::Value =
+            serde_json::from_str(&text).map_err(|e| format!("invalid JSON from GitHub: {e}"))?;
+        if !status.is_success() {
+            let message = json
+                .get("message")
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| text.trim());
+            return Err(format!("GitHub GraphQL {status}: {message}"));
+        }
+        if let Some(errors) = json.get("errors").and_then(|e| e.as_array()) {
+            if !errors.is_empty() {
+                let msg = errors[0]["message"].as_str().unwrap_or("GraphQL error");
+                return Err(format!("GitHub GraphQL error: {msg}"));
+            }
+        }
+        Ok(json)
     }
 
     async fn get_json(
@@ -235,11 +672,9 @@ impl GitHubApi {
             .bearer_auth(&self.token)
             .header("Accept", "application/vnd.github+json")
             .header("X-GitHub-Api-Version", "2022-11-28");
-
         if !query.is_empty() {
             request = request.query(query);
         }
-
         let response = request
             .send()
             .await
@@ -251,7 +686,6 @@ impl GitHubApi {
             .map_err(|e| format!("failed to read GitHub response: {e}"))?;
         let json: serde_json::Value =
             serde_json::from_str(&text).map_err(|e| format!("invalid JSON from GitHub: {e}"))?;
-
         if !status.is_success() {
             let message = json
                 .get("message")
@@ -259,7 +693,6 @@ impl GitHubApi {
                 .unwrap_or_else(|| text.trim());
             return Err(format!("GitHub API {status}: {message}"));
         }
-
         Ok(json)
     }
 }
@@ -278,7 +711,6 @@ async fn fetch_cli_token() -> Result<String, String> {
             String::from_utf8_lossy(&output.stderr).trim()
         ));
     }
-
     let token = String::from_utf8_lossy(&output.stdout).trim().to_string();
     if token.is_empty() {
         return Err("gh auth token returned empty token".into());
@@ -295,23 +727,45 @@ async fn check_cli_installed() -> bool {
     }
 }
 
-async fn process_page(
+fn first_line(value: &serde_json::Value) -> String {
+    value
+        .as_str()
+        .unwrap_or("")
+        .lines()
+        .next()
+        .unwrap_or("")
+        .to_string()
+}
+
+fn is_revert(message: &str) -> bool {
+    message.trim_start().to_ascii_lowercase().starts_with("revert")
+}
+
+fn is_wip(message: &str) -> bool {
+    let m = message.trim();
+    if m.is_empty() {
+        return true;
+    }
+    let lower = m.to_ascii_lowercase();
+    lower.starts_with("wip") || lower == "."
+}
+
+async fn process_today_page(
     api: &GitHubApi,
     json: &serde_json::Value,
-    only_non_merge: bool,
+    filters: &Filters,
     count: &mut u32,
-    repos: &mut BTreeMap<String, RepoCommits>,
+    by_repo: &mut BTreeMap<String, u32>,
+    commits: &mut Vec<CommitDetail>,
 ) -> Result<(), String> {
-    let items = match json["items"].as_array() {
-        Some(a) => a,
-        None => return Ok(()),
+    let Some(items) = json["items"].as_array() else {
+        return Ok(());
     };
     for item in items {
         let is_merge = item["parents"].as_array().map(|a| a.len()).unwrap_or(0) > 1;
-        if only_non_merge && is_merge {
+        if filters.merge && is_merge {
             continue;
         }
-
         let Some(repo_name) = item["repository"]["full_name"].as_str() else {
             continue;
         };
@@ -320,46 +774,33 @@ async fn process_page(
         };
         let repo_name = repo_name.to_string();
         let sha = sha.to_string();
-        let repo_url = item["repository"]["html_url"]
-            .as_str()
-            .unwrap_or("")
-            .to_string();
-        let short_sha = sha.chars().take(7).collect::<String>();
-        let message = item["commit"]["message"]
-            .as_str()
-            .unwrap_or("")
-            .lines()
-            .next()
-            .unwrap_or("")
-            .to_string();
-        let html_url = item["html_url"].as_str().unwrap_or("").to_string();
-        let authored_at = item["commit"]["author"]["date"]
-            .as_str()
-            .unwrap_or("")
-            .to_string();
+        let message = first_line(&item["commit"]["message"]);
 
-        if !commit_has_code_changes(api, &repo_name, &sha).await? {
+        if filters.revert && is_revert(&message) {
             continue;
+        }
+        if filters.empty && is_wip(&message) {
+            continue;
+        }
+        if filters.docs || filters.lock {
+            let files = api.fetch_commit_files(&repo_name, &sha).await?;
+            if !files.is_empty() && !has_real_change(&files, filters) {
+                continue;
+            }
         }
 
         *count += 1;
-
-        let entry = repos
-            .entry(repo_name.clone())
-            .or_insert_with(|| RepoCommits {
-                name_with_owner: repo_name.clone(),
-                url: repo_url,
-                commit_count: 0,
-                commits: Vec::new(),
-            });
-        entry.commit_count += 1;
-        entry.commits.push(CommitDetail {
+        *by_repo.entry(repo_name.clone()).or_insert(0) += 1;
+        commits.push(CommitDetail {
+            short_sha: sha.chars().take(7).collect(),
             sha,
-            short_sha,
             message,
-            url: html_url,
-            authored_at,
-            is_merge,
+            repo: repo_name.rsplit('/').next().unwrap_or(&repo_name).to_string(),
+            url: item["html_url"].as_str().unwrap_or("").to_string(),
+            authored_at: item["commit"]["author"]["date"]
+                .as_str()
+                .unwrap_or("")
+                .to_string(),
         });
     }
     Ok(())
@@ -375,13 +816,37 @@ struct CommitFilesResponse {
     files: Option<Vec<CommitFile>>,
 }
 
-async fn commit_has_code_changes(
-    api: &GitHubApi,
-    repo_name: &str,
-    sha: &str,
-) -> Result<bool, String> {
-    let files = api.fetch_commit_files(repo_name, sha).await?;
-    Ok(files.iter().any(|path| !is_documentation_path(path)))
+/// True if at least one changed file is "real" work given the active filters
+/// (i.e. not purely documentation and/or lockfile churn).
+fn has_real_change(files: &[String], filters: &Filters) -> bool {
+    files.iter().any(|path| {
+        let doc = filters.docs && is_documentation_path(path);
+        let lock = filters.lock && is_lockfile_path(path);
+        !doc && !lock
+    })
+}
+
+fn is_lockfile_path(path: &str) -> bool {
+    const LOCKFILES: &[&str] = &[
+        "package-lock.json",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "cargo.lock",
+        "composer.lock",
+        "gemfile.lock",
+        "poetry.lock",
+        "pipfile.lock",
+        "go.sum",
+        "bun.lockb",
+        "flake.lock",
+    ];
+    let name = path
+        .replace('\\', "/")
+        .rsplit('/')
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    LOCKFILES.contains(&name.as_str())
 }
 
 fn is_documentation_path(path: &str) -> bool {
@@ -454,18 +919,50 @@ fn is_documentation_path(path: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// GitHub's linguist-ish language → hue mapping so each repo gets a stable
+/// accent dot. Falls back to a neutral slate.
+fn language_color(language: Option<&str>) -> String {
+    match language.unwrap_or("") {
+        "TypeScript" => "#3178c6",
+        "JavaScript" => "#f1e05a",
+        "Rust" => "#dea584",
+        "Python" => "#3572A5",
+        "Go" => "#00ADD8",
+        "Svelte" => "#ff3e00",
+        "Vue" => "#41b883",
+        "Ruby" => "#701516",
+        "Java" => "#b07219",
+        "Kotlin" => "#A97BFF",
+        "Swift" => "#F05138",
+        "C" => "#555555",
+        "C++" => "#f34b7d",
+        "C#" => "#178600",
+        "Shell" => "#89e051",
+        "HTML" => "#e34c26",
+        "CSS" => "#563d7c",
+        "MDX" => "#a855f7",
+        "Dart" => "#00B4AB",
+        "PHP" => "#4F5D95",
+        "Elixir" => "#6e4a7e",
+        "Haskell" => "#5e5086",
+        "Zig" => "#ec915c",
+        "Lua" => "#000080",
+        "Scala" => "#c22d40",
+        _ => "#6e7684",
+    }
+    .to_string()
+}
+
 #[cfg(test)]
 mod tests {
-    use super::is_documentation_path;
+    use super::*;
 
     #[test]
     fn detects_common_documentation_files() {
         assert!(is_documentation_path("README.md"));
         assert!(is_documentation_path("docs/architecture.png"));
         assert!(is_documentation_path("Documentation/guide.adoc"));
-        assert!(is_documentation_path(
-            ".github/ISSUE_TEMPLATE/bug_report.yml"
-        ));
+        assert!(is_documentation_path(".github/ISSUE_TEMPLATE/bug_report.yml"));
         assert!(is_documentation_path("LICENSE-MIT"));
     }
 
@@ -475,5 +972,70 @@ mod tests {
         assert!(!is_documentation_path("src/components/Dashboard.tsx"));
         assert!(!is_documentation_path(".github/workflows/ci.yml"));
         assert!(!is_documentation_path("package-lock.json"));
+    }
+
+    #[test]
+    fn detects_lockfiles() {
+        assert!(is_lockfile_path("package-lock.json"));
+        assert!(is_lockfile_path("frontend/yarn.lock"));
+        assert!(is_lockfile_path("Cargo.lock"));
+        assert!(!is_lockfile_path("src/main.rs"));
+    }
+
+    #[test]
+    fn has_real_change_respects_filters() {
+        let all = Filters {
+            merge: true,
+            docs: true,
+            lock: true,
+            revert: false,
+            empty: true,
+        };
+        assert!(!has_real_change(
+            &["README.md".into(), "Cargo.lock".into()],
+            &all
+        ));
+        assert!(has_real_change(
+            &["README.md".into(), "src/main.rs".into()],
+            &all
+        ));
+        let docs_off = Filters {
+            docs: false,
+            ..all.clone()
+        };
+        assert!(has_real_change(&["README.md".into()], &docs_off));
+    }
+
+    #[test]
+    fn streak_counts_back_over_scheduled_days() {
+        let schedule: Vec<String> = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let days = vec![
+            DayCount {
+                date: "2026-05-15".into(),
+                count: 2,
+                level: 1,
+            },
+            DayCount {
+                date: "2026-05-16".into(),
+                count: 4,
+                level: 2,
+            },
+            DayCount {
+                date: "2026-05-17".into(),
+                count: 1,
+                level: 1,
+            },
+            DayCount {
+                date: "2026-05-18".into(),
+                count: 0,
+                level: 0,
+            },
+        ];
+        let today = NaiveDate::from_ymd_opt(2026, 5, 18).unwrap();
+        // today empty but in-progress → previous 3 days form the streak
+        assert_eq!(current_streak(&days, &schedule, &today), 3);
     }
 }

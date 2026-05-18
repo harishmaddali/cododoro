@@ -1,69 +1,33 @@
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::time::Duration as StdDuration;
 
-use chrono::{DateTime, Local, NaiveDate, NaiveTime, Timelike};
-use serde::Deserialize;
+use chrono::{DateTime, Local, NaiveTime, Timelike};
 use tauri::AppHandle;
 use tauri_plugin_notification::NotificationExt;
 
-use crate::gh::{self, ContributionsSnapshot};
+use crate::gh;
+use crate::state::{AppState, FiredFlags};
 use crate::tray;
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Settings {
-    pub daily_goal: u32,
-    pub only_non_merge_commits: bool,
-    pub reminder_time: String,
-    pub reminder_enabled: bool,
-    pub goal_completed_enabled: bool,
-    pub poll_interval_minutes: u32,
-}
-
-#[derive(Default, Debug)]
-pub struct FiredFlags {
-    pub date: Option<NaiveDate>,
-    pub reminder: bool,
-    pub goal_completed: bool,
-}
-
-#[derive(Default)]
-pub struct SchedulerState {
-    pub settings: Mutex<Option<Settings>>,
-    pub last_snapshot: Mutex<Option<ContributionsSnapshot>>,
-    pub fired: Mutex<FiredFlags>,
-}
-
-pub fn start(app: AppHandle, state: Arc<SchedulerState>) {
+pub fn start(app: AppHandle, state: Arc<AppState>) {
     std::thread::spawn(move || loop {
         tick(&app, &state);
         std::thread::sleep(StdDuration::from_secs(60));
     });
 }
 
-pub fn refresh_now(app: &AppHandle, state: &Arc<SchedulerState>) {
-    let only_non_merge = state
-        .settings
-        .lock()
-        .unwrap()
-        .as_ref()
-        .map(|s| s.only_non_merge_commits)
-        .unwrap_or(true);
-    if let Ok(snap) = tauri::async_runtime::block_on(gh::fetch(only_non_merge)) {
-        let daily_goal = state
-            .settings
-            .lock()
-            .unwrap()
-            .as_ref()
-            .map(|s| s.daily_goal)
-            .unwrap_or(1);
-        tray::update_progress(app, snap.commit_count, daily_goal);
+pub fn refresh_now(app: &AppHandle, state: &Arc<AppState>) {
+    let config = state.db.load_config();
+    if let Ok(snap) = tauri::async_runtime::block_on(gh::build_snapshot(&config)) {
+        if let Ok(value) = serde_json::to_value(&snap) {
+            let _ = state.db.save_snapshot(&value);
+        }
+        tray::update_progress(app, snap.today_count, config.daily_goal);
         *state.last_snapshot.lock().unwrap() = Some(snap);
     }
 }
 
-fn tick(app: &AppHandle, state: &SchedulerState) {
+fn tick(app: &AppHandle, state: &Arc<AppState>) {
     let now = Local::now();
     let today = now.date_naive();
 
@@ -77,75 +41,135 @@ fn tick(app: &AppHandle, state: &SchedulerState) {
         }
     }
 
-    let settings = match state.settings.lock().unwrap().clone() {
-        Some(mut s) => {
-            s.only_non_merge_commits = true;
-            s
-        }
-        None => return,
-    };
+    let config = state.db.load_config();
+    if !config.onboarded {
+        return;
+    }
 
     let needs_fetch = {
         let snap = state.last_snapshot.lock().unwrap();
         match snap.as_ref() {
             None => true,
-            Some(s) => {
-                if s.only_non_merge != settings.only_non_merge_commits {
-                    true
-                } else {
-                    match DateTime::parse_from_rfc3339(&s.fetched_at) {
-                        Ok(t) => {
-                            let age = now
-                                .signed_duration_since(t.with_timezone(&Local))
-                                .num_minutes();
-                            age >= settings.poll_interval_minutes.max(1) as i64
-                        }
-                        Err(_) => true,
-                    }
+            Some(s) => match DateTime::parse_from_rfc3339(&s.fetched_at) {
+                Ok(t) => {
+                    now.signed_duration_since(t.with_timezone(&Local))
+                        .num_minutes()
+                        >= config.poll_interval_minutes.max(1) as i64
                 }
-            }
+                Err(_) => true,
+            },
         }
     };
     if needs_fetch {
-        if let Ok(snap) = tauri::async_runtime::block_on(gh::fetch(settings.only_non_merge_commits))
-        {
-            tray::update_progress(app, snap.commit_count, settings.daily_goal);
-            *state.last_snapshot.lock().unwrap() = Some(snap);
-        }
+        refresh_now(app, state);
     }
 
     let snapshot = state.last_snapshot.lock().unwrap().clone();
-    let today_count = snapshot.as_ref().map(|s| s.commit_count).unwrap_or(0);
-    let goal_met = today_count >= settings.daily_goal;
-    let current_hour = now.hour();
-    let current_minute = now.minute();
+    let Some(snap) = snapshot else {
+        return;
+    };
+    let today_count = snap.today_count;
+    let goal_met = today_count >= config.daily_goal;
+    let hour = now.hour();
+    let minute = now.minute();
 
-    if settings.reminder_enabled && !goal_met {
-        if let Some((rh, rm)) = parse_time(&settings.reminder_time) {
-            let mut fired = state.fired.lock().unwrap();
-            let due = current_hour > rh || (current_hour == rh && current_minute >= rm);
-            if !fired.reminder && due {
-                fired.reminder = true;
-                drop(fired);
-                let remaining = settings.daily_goal - today_count;
-                let body = format!(
-                    "{remaining} more commit{} to hit today's goal.",
-                    if remaining == 1 { "" } else { "s" }
+    if config.nudges.morning && due(hour, minute, 8, 30) && claim(state, Slot::Reminder) {
+        let remaining = config.daily_goal.saturating_sub(today_count);
+        send(
+            app,
+            "Morning check-in",
+            &format!("Today's target: {remaining} more commit{}.", plural(remaining)),
+        );
+    }
+
+    if config.nudges.midday && due(hour, minute, 13, 0) && claim(state, Slot::Reminder) {
+        send(
+            app,
+            "Midday check-in",
+            &format!("{today_count}/{} so far — keep the rhythm.", config.daily_goal),
+        );
+    }
+
+    if config.nudges.evening && !goal_met {
+        if let Some((rh, rm)) = parse_time(&config.reminder_time) {
+            if due(hour, minute, rh, rm) && claim(state, Slot::Reminder) {
+                let remaining = config.daily_goal.saturating_sub(today_count);
+                send(
+                    app,
+                    "Last-call nudge",
+                    &format!(
+                        "{remaining} more commit{} to hit today's goal.",
+                        plural(remaining)
+                    ),
                 );
-                send_notification(app, "Daily commit reminder", &body);
             }
         }
     }
 
-    if settings.goal_completed_enabled && goal_met {
-        let mut fired = state.fired.lock().unwrap();
-        if !fired.goal_completed {
-            fired.goal_completed = true;
-            drop(fired);
-            let goal = settings.daily_goal;
-            let body = format!("You hit your daily commit goal ({today_count}/{goal}). Nice.");
-            send_notification(app, "Goal complete", &body);
-        }
+    if config.nudges.streak_warn
+        && hour >= 21
+        && today_count == 0
+        && snap.streak > 0
+        && claim(state, Slot::StreakWarn)
+    {
+        send(
+            app,
+            "Streak about to break",
+            &format!(
+                "Commit before midnight to keep your {}-day streak alive.",
+                snap.streak
+            ),
+        );
+    }
+
+    if config.nudges.milestone
+        && goal_met
+        && is_milestone(snap.streak)
+        && claim(state, Slot::Milestone)
+    {
+        send(
+            app,
+            "Milestone hit",
+            &format!("{}-day streak. Keep shipping.", snap.streak),
+        );
+    }
+}
+
+enum Slot {
+    Reminder,
+    StreakWarn,
+    Milestone,
+}
+
+/// Returns true the first time a given notification slot is claimed for the
+/// current day; subsequent calls return false until the daily reset.
+fn claim(state: &Arc<AppState>, slot: Slot) -> bool {
+    let mut fired = state.fired.lock().unwrap();
+    let flag = match slot {
+        Slot::Reminder => &mut fired.reminder,
+        Slot::StreakWarn => &mut fired.streak_warn,
+        Slot::Milestone => &mut fired.goal_completed,
+    };
+    if *flag {
+        return false;
+    }
+    *flag = true;
+    true
+}
+
+fn due(hour: u32, minute: u32, target_h: u32, target_m: u32) -> bool {
+    hour > target_h || (hour == target_h && minute >= target_m)
+}
+
+fn is_milestone(streak: u32) -> bool {
+    matches!(streak, 7 | 30 | 100 | 365)
+}
+
+fn plural(n: u32) -> &'static str {
+    if n == 1 {
+        ""
+    } else {
+        "s"
     }
 }
 
@@ -155,6 +179,6 @@ fn parse_time(s: &str) -> Option<(u32, u32)> {
         .map(|t| (t.hour(), t.minute()))
 }
 
-fn send_notification(app: &AppHandle, title: &str, body: &str) {
+fn send(app: &AppHandle, title: &str, body: &str) {
     let _ = app.notification().builder().title(title).body(body).show();
 }

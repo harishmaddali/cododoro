@@ -6,14 +6,16 @@
   "permissions": [
     "core:default",
     "notification:default",
-    "store:default",
     "opener:default",
     "updater:default",
     "process:default",
     "core:window:allow-start-dragging",
     {
       "identifier": "opener:allow-open-url",
-      "allow": [{ "url": "https://github.com/*" }]
+      "allow": [
+        { "url": "https://github.com/*" },
+        { "url": "https://*.github.com/*" }
+      ]
     }
   ]
 }

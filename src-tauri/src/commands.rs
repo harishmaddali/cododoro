@@ -3,49 +3,65 @@ use std::sync::Arc;
 use tauri::AppHandle;
 use tauri_plugin_notification::NotificationExt;
 
-use crate::gh::{self, ContributionsSnapshot, GhStatus};
-use crate::scheduler::{SchedulerState, Settings};
+use crate::gh::{self, AppSnapshot, GhStatus, RepoMeta};
+use crate::state::AppState;
 use crate::tray;
 
 #[tauri::command]
-pub async fn check_gh_status() -> GhStatus {
+pub async fn auth_status() -> GhStatus {
     gh::check_status().await
 }
 
 #[tauri::command]
-pub async fn fetch_contributions(
+pub fn get_config(state: tauri::State<'_, Arc<AppState>>) -> serde_json::Value {
+    serde_json::to_value(state.db.load_config()).unwrap_or_default()
+}
+
+#[tauri::command]
+pub fn save_config(
     app: AppHandle,
-    state: tauri::State<'_, Arc<SchedulerState>>,
-    only_non_merge: bool,
-) -> Result<ContributionsSnapshot, String> {
+    state: tauri::State<'_, Arc<AppState>>,
+    config: crate::db::Config,
+) -> Result<(), String> {
+    state.db.save_config(&config)?;
+    if let Some(snap) = state.last_snapshot.lock().unwrap().as_ref() {
+        tray::update_progress(&app, snap.today_count, config.daily_goal);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn load_snapshot(state: tauri::State<'_, Arc<AppState>>) -> Option<serde_json::Value> {
+    state.db.load_snapshot()
+}
+
+#[tauri::command]
+pub async fn refresh(
+    app: AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<AppSnapshot, String> {
     let state = state.inner().clone();
-    let _ = only_non_merge;
-    let snap = gh::fetch(true).await?;
-    let goal = state
-        .settings
-        .lock()
-        .unwrap()
-        .as_ref()
-        .map(|s| s.daily_goal)
-        .unwrap_or(1);
-    tray::update_progress(&app, snap.commit_count, goal);
+    let config = state.db.load_config();
+    let snap = gh::build_snapshot(&config).await?;
+
+    if let Ok(value) = serde_json::to_value(&snap) {
+        let _ = state.db.save_snapshot(&value);
+    }
+    tray::update_progress(&app, snap.today_count, config.daily_goal);
     *state.last_snapshot.lock().unwrap() = Some(snap.clone());
     Ok(snap)
 }
 
 #[tauri::command]
-pub fn apply_settings(
-    app: AppHandle,
-    state: tauri::State<'_, Arc<SchedulerState>>,
-    mut settings: Settings,
-) -> Result<(), String> {
-    settings.only_non_merge_commits = true;
-    let goal = settings.daily_goal;
-    *state.settings.lock().unwrap() = Some(settings);
-    if let Some(snap) = state.last_snapshot.lock().unwrap().as_ref() {
-        tray::update_progress(&app, snap.commit_count, goal);
+pub async fn list_repos(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<Vec<RepoMeta>, String> {
+    let state = state.inner().clone();
+    let repos = gh::list_repos().await?;
+    if let Ok(value) = serde_json::to_value(&repos) {
+        let _ = state.db.save_repos(&value);
     }
-    Ok(())
+    Ok(repos)
 }
 
 #[tauri::command]

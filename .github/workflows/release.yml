@@ -1,0 +1,91 @@
+name: Release
+
+# Cuts a new release whenever code lands on main.
+#
+# Flow:
+#   1. version job — work out the next version from Conventional Commits,
+#      bump every version file, commit it back to main ([skip ci]) and push
+#      a v* tag.
+#   2. build job — call the Publish Release workflow on that tag to build,
+#      sign and publish the macOS / Windows / Linux installers.
+#
+# Doc- and CI-only pushes are filtered out below; add `[skip release]` to a
+# commit message to opt a specific push out entirely.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.github/**'
+      - 'LICENSE'
+      - '.gitignore'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    if: ${{ !contains(github.event.head_commit.message, '[skip release]') }}
+    runs-on: ubuntu-latest
+    outputs:
+      released: ${{ steps.bump.outputs.released }}
+      new_tag: ${{ steps.bump.outputs.new_tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch tags
+        run: git fetch --tags --force
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Compute next version (Conventional Commits)
+        id: next
+        run: node scripts/next-version.mjs
+
+      - name: Bump, commit and tag
+        id: bump
+        if: steps.next.outputs.released == 'true'
+        env:
+          NEXT: ${{ steps.next.outputs.next_version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          node scripts/set-version.mjs "$NEXT"
+
+          git add package.json package-lock.json \
+            src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json
+          git commit -m "chore(release): v${NEXT} [skip ci]"
+          git tag "v${NEXT}"
+          git push origin HEAD:main
+          git push origin "v${NEXT}"
+
+          echo "released=true" >> "$GITHUB_OUTPUT"
+          echo "new_tag=v${NEXT}" >> "$GITHUB_OUTPUT"
+
+      - name: Nothing to release
+        if: steps.next.outputs.released != 'true'
+        run: echo "No releasable commits since the last tag — skipping."
+
+  build:
+    needs: version
+    if: ${{ needs.version.outputs.released == 'true' }}
+    permissions:
+      contents: write
+    uses: ./.github/workflows/publish-release.yml
+    with:
+      tag: ${{ needs.version.outputs.new_tag }}
+    secrets: inherit

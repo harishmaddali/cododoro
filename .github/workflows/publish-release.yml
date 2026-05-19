@@ -1,9 +1,29 @@
 name: Publish Release
 
+# Builds, signs and publishes the desktop installers for a given tag.
+#
+# Triggered three ways:
+#   • automatically by the Release workflow (workflow_call) after it bumps
+#     the version and pushes a tag on a push to main
+#   • by pushing a v* tag manually
+#   • manually from the Actions tab (workflow_dispatch) to rebuild a tag
+
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build and release (e.g. v0.2.0)'
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Tag to build and release (e.g. v0.2.0)'
+        required: true
+        type: string
 
 jobs:
   publish-release:
@@ -15,22 +35,23 @@ jobs:
         include:
           - platform: 'macos-latest'
             args: '--target universal-apple-darwin'
-            artifact_name: 'Codeodoro'
-            artifact_ext: 'dmg'
           - platform: 'ubuntu-22.04'
             args: ''
-            artifact_name: 'codeodoro'
-            artifact_ext: 'AppImage'
           - platform: 'windows-latest'
             args: ''
-            artifact_name: 'Codeodoro'
-            artifact_ext: 'msi'
 
     runs-on: ${{ matrix.platform }}
 
     steps:
+      - name: Resolve tag
+        id: tag
+        shell: bash
+        run: echo "tag=${{ inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
 
       - name: Install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
@@ -64,14 +85,13 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PASSWORD }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Codeodoro ${{ github.ref_name }}'
+          tagName: ${{ steps.tag.outputs.tag }}
+          releaseName: 'cododoro ${{ steps.tag.outputs.tag }}'
           releaseBody: |
             See the assets to download this version and install.
 
-            Release notes:
-            - Run `npm run tauri:build` locally to generate release artifacts
-            - macOS: Universal binary (Intel + Apple Silicon)
+            Release artifacts:
+            - macOS: Universal binary (Intel + Apple Silicon) `.dmg`
             - Windows: MSI installer
             - Linux: AppImage
           releaseDraft: false

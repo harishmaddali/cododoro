@@ -2,6 +2,12 @@
 
 This guide covers how to build the cododoro desktop application and publish it to users with **automatic updates via GitHub Releases**.
 
+> **TL;DR** — Releases are automated. Push Conventional-Commit changes to
+> `main` and the **Release** workflow versions, tags and publishes a new
+> multi-platform build. See [Step 4: Publish a Release](#step-4-publish-a-release).
+> One-time signing setup is required first — see the
+> [Quick Reference Checklist](#quick-reference-checklist).
+
 ## Prerequisites
 
 - **Node.js** 18+ and npm
@@ -100,25 +106,48 @@ echo "src-tauri/private_key.pem" >> .gitignore
 
 ### Step 4: Publish a Release
 
-Push a version tag to trigger the automated build workflow:
+**Releases are automatic.** Just merge/push to `main`:
 
 ```bash
-# Update versions in all files
-npm version minor  # or patch/major
-
-# This updates:
-# - package.json
-# - src-tauri/Cargo.toml
-# - src-tauri/tauri.conf.json
-
-# Push to GitHub
-git push origin main --tags
+git push origin main
 ```
 
-The `.github/workflows/publish-release.yml` workflow will:
-1. **Build** for macOS (Intel + ARM), Windows, and Linux
-2. **Sign** each artifact with your private key
-3. **Create a GitHub Release** with all binaries
+The `.github/workflows/release.yml` workflow will:
+
+1. **Decide the next version** from your commit messages using
+   [Conventional Commits](https://www.conventionalcommits.org/):
+   - `fix:` / `perf:` → patch (`0.1.0` → `0.1.1`)
+   - `feat:` → minor (`0.1.0` → `0.2.0`)
+   - `feat!:` or a `BREAKING CHANGE:` footer → major (`0.1.0` → `1.0.0`)
+   - a plain (non-Conventional) commit → patch
+   - only `docs/chore/style/refactor/test/build/ci` commits → **no release**
+2. **Bump every version file** (`package.json`, `package-lock.json`,
+   `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json`)
+   via `scripts/set-version.mjs`, commit it back to `main` as
+   `chore(release): vX.Y.Z [skip ci]`, and push a `vX.Y.Z` tag.
+3. **Call `.github/workflows/publish-release.yml`** on that tag, which:
+   - **Builds** for macOS (Intel + ARM), Windows, and Linux
+   - **Signs** each artifact with your private key
+   - **Creates a GitHub Release** with all binaries
+
+Pushes that change **only** docs (`**/*.md`, `docs/**`), CI (`.github/**`),
+`LICENSE` or `.gitignore` are ignored. To skip a release for any other push,
+put `[skip release]` in the commit message.
+
+> The first ever release ships the current `package.json` version as-is
+> (so it becomes `v0.1.0`); every release after that is bumped from the
+> previous tag.
+
+**Manual / local alternative** — cut a release without waiting for `main`:
+
+```bash
+npm run version:next        # preview the version that would be released
+npm run release:local       # compute, bump, commit, tag and push it
+npm run release:local -- --dry-run   # show what it would do, change nothing
+npm run release:local -- 0.4.0       # force an explicit version
+```
+
+Pushing a `v*` tag (by any means) always triggers the build/publish workflow.
 
 ### Step 5: Users Get Automatic Updates
 
@@ -211,53 +240,42 @@ This is optional—the Tauri update signing is sufficient for security.
 
 ## Version Management
 
-Versions must be consistent across all files and follow [Semantic Versioning](https://semver.org/).
+The version is pinned in **five** places and they must stay identical:
 
-### Automatic Versioning (Recommended)
+- `package.json`
+- `package-lock.json`
+- `src-tauri/Cargo.toml`
+- `src-tauri/Cargo.lock`
+- `src-tauri/tauri.conf.json`
 
-Use npm version to update all files at once:
+> ⚠️ `npm version` only updates `package.json`/`package-lock.json` — it does
+> **not** touch the `src-tauri/*` files, so it must not be used to release.
+> Use the scripts below instead; they keep all five in lockstep.
+
+### Automatic (Recommended)
+
+You don't set the version by hand. On push to `main`, `release.yml` runs
+`scripts/next-version.mjs` to derive the next version from
+[Conventional Commits](https://www.conventionalcommits.org/) and
+`scripts/set-version.mjs` to write it everywhere. See
+[Step 4: Publish a Release](#step-4-publish-a-release) for the bump rules.
 
 ```bash
-# Patch (0.1.0 → 0.1.1) - bug fixes
-npm version patch
-
-# Minor (0.1.0 → 0.2.0) - new features
-npm version minor
-
-# Major (0.1.0 → 1.0.0) - breaking changes
-npm version major
+npm run version:next   # preview the next version (reads git history, no writes)
 ```
 
-This updates:
-- `package.json` version
-- Git tag created: `v0.1.1`
-- Commit message: `v0.1.1`
+### Manual
 
-### Manual Versioning
+Set an explicit version across all five files, then tag:
 
-If using npm version doesn't work, update manually:
-
-1. `package.json`:
-   ```json
-   "version": "0.2.0"
-   ```
-
-2. `src-tauri/Cargo.toml`:
-   ```toml
-   [package]
-   version = "0.2.0"
-   ```
-
-3. `src-tauri/tauri.conf.json`:
-   ```json
-   "version": "0.2.0"
-   ```
-
-Then create the git tag:
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+npm run version:set -- 0.2.0          # writes all five files
+# or do the full bump+commit+tag+push in one step:
+npm run release:local -- 0.2.0
 ```
+
+`scripts/set-version.mjs` validates the argument is semver and edits only the
+version field in each file (verified to produce a minimal, surgical diff).
 
 ## Security: Protecting Your Private Key
 
@@ -326,16 +344,23 @@ Edit in `src-tauri/tauri.conf.json` under `app.windows[0]`
 
 ## Quick Reference Checklist
 
+One-time setup (required before the first automated release can sign builds):
+
 - [ ] Run `./scripts/setup-updater.sh` and save the public key
-- [ ] Update `src-tauri/tauri.conf.json` with public key
+- [ ] Update `src-tauri/tauri.conf.json` `plugins.updater.pubkey` with the public key
 - [ ] Add `TAURI_SIGNING_PRIVATE_KEY` to GitHub Secrets
 - [ ] Add `TAURI_SIGNING_PASSWORD` to GitHub Secrets
-- [ ] Add `src-tauri/private_key.pem` to `.gitignore`
-- [ ] Test locally: `npm run tauri:dev`
-- [ ] Update version: `npm version minor`
-- [ ] Push with tags: `git push origin main --tags`
-- [ ] Monitor GitHub Actions for successful build
-- [ ] Verify release created: https://github.com/harishmaddali/cododoro/releases
+- [ ] Confirm `src-tauri/private_key.pem` is git-ignored (already in `.gitignore`)
+- [ ] Allow GitHub Actions to push to `main` (Settings → Actions → Workflow
+      permissions → *Read and write*; if `main` is a protected branch, allow
+      the `github-actions[bot]` to bypass it or releases can't commit the bump)
+
+Every release (automatic):
+
+- [ ] Use Conventional Commit messages (`feat:`, `fix:`, `feat!:`, …)
+- [ ] Merge/push to `main`
+- [ ] Watch the **Release** workflow, then the **Publish Release** workflow in GitHub Actions
+- [ ] Verify the release: https://github.com/harishmaddali/cododoro/releases
 
 ## Resources
 

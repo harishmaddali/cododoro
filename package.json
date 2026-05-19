@@ -14,7 +14,10 @@
     "tauri:build:linux": "tauri build --target linux",
     "tauri:build:macos": "tauri build --target macos",
     "tauri:build:macos-arm64": "tauri build --target macos-arm64",
-    "tauri:build:windows": "tauri build --target windows"
+    "tauri:build:windows": "tauri build --target windows",
+    "version:next": "node scripts/next-version.mjs",
+    "version:set": "node scripts/set-version.mjs",
+    "release:local": "scripts/local-release.sh"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",

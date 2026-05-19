@@ -38,6 +38,7 @@ export function Home({
   const streak = snapshot.streak;
   const hours = Math.max(1, 24 - new Date().getHours());
   const trackedRepos = snapshot.repos.filter((r) => r.tracked);
+  const todaysRepos = trackedRepos.filter((r) => r.today > 0);
   const weekTotal = snapshot.repos.reduce((s, r) => s + r.week, 0);
   const greeting = snapshot.name?.split(" ")[0] || snapshot.login;
   const today = new Date().toLocaleDateString(undefined, {
@@ -225,10 +226,10 @@ export function Home({
       <div style={{ height: 24 }} />
       <SectionHeader title="Today's repos" />
       <div style={{ padding: "0 20px 0", display: "flex", flexDirection: "column", gap: 8 }}>
-        {trackedRepos.length === 0 && (
-          <div className="card t-small">No tracked repositories yet.</div>
+        {todaysRepos.length === 0 && (
+          <div className="card t-small">No contributions yet today.</div>
         )}
-        {trackedRepos.slice(0, 6).map((r) => (
+        {todaysRepos.slice(0, 6).map((r) => (
           <RepoProgressRow
             key={r.nameWithOwner}
             repo={r}

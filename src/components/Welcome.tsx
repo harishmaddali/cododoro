@@ -98,8 +98,15 @@ export function Welcome({ status, onContinue, onNeedsAuth }: Props) {
         {authed ? (
           <button
             onClick={onContinue}
-            className="btn btn-block btn-primary"
-            style={{ height: 56, borderRadius: 16, fontSize: 15 }}
+            className="btn btn-block"
+            style={{
+              background: "#0f1419",
+              color: "var(--fg-0)",
+              border: "1px solid var(--line-2)",
+              height: 56,
+              borderRadius: 16,
+              fontSize: 15,
+            }}
           >
             <Avatar status={status} /> Continue as @{status!.login}
           </button>

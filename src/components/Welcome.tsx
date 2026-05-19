@@ -116,7 +116,7 @@ export function Welcome({ status, onContinue, onNeedsAuth }: Props) {
               fontSize: 15,
             }}
           >
-            <Icon name="terminal" size={20} /> Connect GitHub CLI
+            <Icon name="github" size={20} /> Continue with GitHub
           </button>
         )}
         <div
@@ -130,7 +130,7 @@ export function Welcome({ status, onContinue, onNeedsAuth }: Props) {
         >
           {authed
             ? "Signed in via the GitHub CLI on this machine."
-            : "Cododoro uses your local gh CLI — no separate login."}
+            : "We read public commit metadata only. Nothing else."}
         </div>
       </div>
     </div>

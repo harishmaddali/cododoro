@@ -29,10 +29,11 @@ npm run tauri:dev
 npm run tauri:build
 
 # Platform-specific builds
-npm run tauri:build:macos          # Intel Macs
-npm run tauri:build:macos-arm64    # Apple Silicon (M1/M2/M3)
-npm run tauri:build:windows        # Windows
-npm run tauri:build:linux          # Linux
+npm run tauri:build:macos             # Intel Macs (x86_64-apple-darwin)
+npm run tauri:build:macos-arm64       # Apple Silicon / M1+ (aarch64-apple-darwin)
+npm run tauri:build:macos-universal   # Universal binary (Intel + Apple Silicon)
+npm run tauri:build:windows           # Windows (x86_64-pc-windows-msvc)
+npm run tauri:build:linux             # Linux (x86_64-unknown-linux-gnu)
 ```
 
 ## Where Builds Go
@@ -190,19 +191,16 @@ When users run the app:
 If you want to publish without GitHub Actions:
 
 ```bash
-# Build locally for all platforms
-npm run tauri:build
-npm run tauri:build:macos
-npm run tauri:build:macos-arm64
-npm run tauri:build:windows
-npm run tauri:build:linux
+# Build locally (run each on its matching host OS)
+npm run tauri:build:macos-universal   # on macOS
+npm run tauri:build:windows           # on Windows
+npm run tauri:build:linux             # on Linux
 
-# Create GitHub release manually
+# Create GitHub release manually (bundles land under target/<triple>/release/bundle)
 gh release create v0.2.0 \
-  src-tauri/target/release/bundle/macos/*.dmg \
-  src-tauri/target/release/bundle/macos-arm64/*.dmg \
-  src-tauri/target/release/bundle/windows/*.msi \
-  src-tauri/target/release/bundle/linux/*.AppImage \
+  src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg \
+  src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi \
+  src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage \
   --title "cododoro v0.2.0" \
   --notes "See assets to download and install"
 ```

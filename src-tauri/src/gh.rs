@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::process::Command;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use chrono::{Datelike, Local, NaiveDate, TimeZone, Utc};
@@ -27,7 +28,7 @@ pub async fn check_status() -> GhStatus {
             login: None,
             name: None,
             avatar_url: None,
-            error: Some("gh CLI not found on PATH".into()),
+            error: Some("gh CLI not found".into()),
         };
     }
 
@@ -697,9 +698,92 @@ impl GitHubApi {
     }
 }
 
+/// Absolute path to the `gh` binary, resolved once and cached.
+///
+/// A macOS `.app` launched from Finder/Dock/Spotlight inherits launchd's
+/// minimal PATH (`/usr/bin:/bin:/usr/sbin:/sbin`), which omits Homebrew and
+/// other dirs. A bare `Command::new("gh")` therefore fails in the production
+/// bundle even when `gh` is installed (it only works under `tauri dev`, which
+/// inherits the terminal's PATH). We resolve an absolute path explicitly.
+fn gh_path() -> &'static str {
+    static GH_PATH: OnceLock<String> = OnceLock::new();
+    GH_PATH.get_or_init(resolve_gh).as_str()
+}
+
+fn resolve_gh() -> String {
+    // 1. Explicit override (escape hatch for unusual setups).
+    if let Ok(p) = std::env::var("CODODORO_GH_PATH") {
+        if !p.trim().is_empty() {
+            return p;
+        }
+    }
+
+    #[cfg(unix)]
+    {
+        // 2. Well-known install locations: Homebrew (arm64 / x86),
+        //    MacPorts, system, then user-local and Nix per-user profiles.
+        let mut candidates: Vec<std::path::PathBuf> = vec![
+            "/opt/homebrew/bin/gh".into(),
+            "/usr/local/bin/gh".into(),
+            "/opt/local/bin/gh".into(),
+            "/usr/bin/gh".into(),
+        ];
+        if let Ok(home) = std::env::var("HOME") {
+            candidates.push(std::path::Path::new(&home).join(".local/bin/gh"));
+            candidates.push(std::path::Path::new(&home).join("bin/gh"));
+        }
+        if let Ok(user) = std::env::var("USER") {
+            candidates.push(format!("/etc/profiles/per-user/{user}/bin/gh").into());
+        }
+        if let Some(found) = candidates.into_iter().find(|c| c.is_file()) {
+            return found.to_string_lossy().into_owned();
+        }
+
+        // 3. Ask the user's login shell (handles asdf/mise/custom dirs).
+        if let Some(p) = gh_from_login_shell() {
+            return p;
+        }
+    }
+
+    // 4. Last resort: rely on PATH (works under `tauri dev`).
+    "gh".to_string()
+}
+
+#[cfg(unix)]
+fn gh_from_login_shell() -> Option<String> {
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into());
+    let out = Command::new(shell)
+        .args(["-lc", "command -v gh"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let path = String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .next_back()?
+        .to_string();
+    std::path::Path::new(&path).is_file().then_some(path)
+}
+
+/// A `Command` for `gh` using an absolute program path and a PATH that
+/// includes common bin dirs (so anything `gh` itself shells out to resolves).
+fn gh_command() -> Command {
+    let mut cmd = Command::new(gh_path());
+    let extra = "/opt/homebrew/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/bin";
+    let path = match std::env::var("PATH") {
+        Ok(base) if !base.is_empty() => format!("{extra}:{base}"),
+        _ => extra.to_string(),
+    };
+    cmd.env("PATH", path);
+    cmd
+}
+
 async fn fetch_cli_token() -> Result<String, String> {
     let output = tauri::async_runtime::spawn_blocking(|| {
-        Command::new("gh").args(["auth", "token"]).output()
+        gh_command().args(["auth", "token"]).output()
     })
     .await
     .map_err(|e| format!("failed to read gh auth token: {e}"))?
@@ -719,7 +803,7 @@ async fn fetch_cli_token() -> Result<String, String> {
 }
 
 async fn check_cli_installed() -> bool {
-    match tauri::async_runtime::spawn_blocking(|| Command::new("gh").arg("--version").output())
+    match tauri::async_runtime::spawn_blocking(|| gh_command().arg("--version").output())
         .await
     {
         Ok(Ok(out)) => out.status.success(),

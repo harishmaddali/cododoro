@@ -59,7 +59,7 @@ export function GoalsScreen({ config, onConfigChange, onBack }: Props) {
             value={config.dailyGoal}
             onChange={(v) => set({ dailyGoal: v })}
             min={1}
-            max={12}
+            max={9999}
           />
         </div>
       </div>

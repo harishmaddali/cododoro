@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tauri::AppHandle;
 use tauri_plugin_notification::NotificationExt;
 
-use crate::gh::{self, AppSnapshot, GhStatus, RepoMeta};
+use crate::gh::{self, AppSnapshot, GhStatus};
 use crate::state::AppState;
 use crate::tray;
 
@@ -50,18 +50,6 @@ pub async fn refresh(
     tray::update_progress(&app, snap.today_count, config.daily_goal);
     *state.last_snapshot.lock().unwrap() = Some(snap.clone());
     Ok(snap)
-}
-
-#[tauri::command]
-pub async fn list_repos(
-    state: tauri::State<'_, Arc<AppState>>,
-) -> Result<Vec<RepoMeta>, String> {
-    let state = state.inner().clone();
-    let repos = gh::list_repos().await?;
-    if let Ok(value) = serde_json::to_value(&repos) {
-        let _ = state.db.save_repos(&value);
-    }
-    Ok(repos)
 }
 
 #[tauri::command]

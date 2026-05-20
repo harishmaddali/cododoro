@@ -14,7 +14,6 @@ pub struct Db {
 
 const CONFIG_KEY: &str = "config";
 const SNAPSHOT_KEY: &str = "snapshot";
-const REPOS_KEY: &str = "repos";
 
 impl Db {
     pub fn open(path: &Path) -> Result<Self, String> {
@@ -88,14 +87,6 @@ impl Db {
     pub fn save_snapshot(&self, snapshot: &serde_json::Value) -> Result<(), String> {
         self.set_json(SNAPSHOT_KEY, snapshot)
     }
-
-    pub fn load_repos(&self) -> Option<serde_json::Value> {
-        self.get_json(REPOS_KEY).ok().flatten()
-    }
-
-    pub fn save_repos(&self, repos: &serde_json::Value) -> Result<(), String> {
-        self.set_json(REPOS_KEY, repos)
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -148,8 +139,6 @@ pub struct Config {
     pub onboarded: bool,
     pub daily_goal: u32,
     pub streak_days: Vec<String>,
-    /// repo "owner/name" -> tracked toward the daily goal.
-    pub tracked_repos: BTreeMap<String, bool>,
     /// repo "owner/name" -> optional per-repo daily goal override.
     pub repo_goals: BTreeMap<String, u32>,
     pub filters: Filters,
@@ -169,7 +158,6 @@ impl Default for Config {
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
-            tracked_repos: BTreeMap::new(),
             repo_goals: BTreeMap::new(),
             filters: Filters::default(),
             nudges: Nudges::default(),

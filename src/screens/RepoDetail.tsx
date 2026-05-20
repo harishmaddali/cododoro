@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import { Icon } from "../lib/icons";
-import { ProgressRing, Stepper, ToggleRow } from "../components/shared";
+import { ProgressRing, Stepper } from "../components/shared";
 import { ScreenHeader } from "../components/ScreenHeader";
 import { openExternal } from "../lib/api";
 import { AppSnapshot, Config, DayPoint } from "../lib/types";
@@ -25,17 +25,11 @@ export function RepoDetail({
   const repo = snapshot.repos.find((r) => r.nameWithOwner === repoId);
   if (!repo) return null;
 
-  const tracked = config.trackedRepos[repoId] ?? repo.tracked;
   const goal = config.repoGoals[repoId] ?? repo.goal ?? 0;
   const done = goal > 0 && repo.today >= goal;
   const recent = snapshot.recentCommits.filter((c) => c.repo === repo.name);
   const last90 = days.slice(-91);
 
-  const setTracked = (v: boolean) =>
-    onConfigChange({
-      ...config,
-      trackedRepos: { ...config.trackedRepos, [repoId]: v },
-    });
   const setGoal = (v: number) =>
     onConfigChange({
       ...config,
@@ -128,7 +122,6 @@ export function RepoDetail({
         </ProgressRing>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <RepoStat label="This week" value={repo.week} />
-          <RepoStat label="Tracked" value={tracked ? "Yes" : "No"} />
           <RepoStat label="Today" value={repo.today} />
         </div>
       </div>
@@ -174,27 +167,10 @@ export function RepoDetail({
           This repo's goal
         </div>
         <div className="card">
-          <ToggleRow
-            title="Track this repo"
-            sub={
-              tracked
-                ? "Commits here count toward your daily goal"
-                : "Hidden from totals"
-            }
-            value={tracked}
-            onChange={setTracked}
-          />
-          {tracked && (
-            <div style={{ marginTop: 6 }}>
-              <div
-                className="t-small"
-                style={{ marginBottom: 10, paddingLeft: 4 }}
-              >
-                Per-repo daily goal (0 = use the global goal)
-              </div>
-              <Stepper value={goal} onChange={setGoal} min={0} max={9999} />
-            </div>
-          )}
+          <div className="t-small" style={{ marginBottom: 10, paddingLeft: 4 }}>
+            Per-repo daily goal (0 = use the global goal)
+          </div>
+          <Stepper value={goal} onChange={setGoal} min={0} max={9999} />
         </div>
       </div>
 

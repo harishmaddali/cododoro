@@ -18,7 +18,7 @@ export function ProfileScreen({
   onOpenNudges,
   onReset,
 }: Props) {
-  const trackedCount = snapshot.repos.filter((r) => r.tracked).length;
+  const repoCount = snapshot.repos.length;
   const activeFilters = Object.values(config.filters).filter(Boolean).length;
   const nudgeLabel = config.nudges.morning
     ? "Morning · 08:30"
@@ -92,7 +92,7 @@ export function ProfileScreen({
         >
           <ProfileStat value={snapshot.yearTotal} label="Year" />
           <ProfileStat value={snapshot.streak} label="Streak" accent="var(--grass-4)" />
-          <ProfileStat value={trackedCount} label="Tracked" />
+          <ProfileStat value={repoCount} label="Repos" />
         </div>
 
         <div

@@ -1,7 +1,21 @@
+import { useLayoutEffect, useRef, useState } from "react";
 import type { MouseEvent, ReactNode } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Icon, IconName } from "../lib/icons";
 import { DayPoint, Tab } from "../lib/types";
+
+const tooltipDateFmt = new Intl.DateTimeFormat(undefined, {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+});
+
+function formatCellTooltip(count: number, date: Date) {
+  const noun = count === 1 ? "contribution" : "contributions";
+  const label = count === 0 ? "No contributions" : `${count} ${noun}`;
+  return `${label} on ${tooltipDateFmt.format(date)}`;
+}
 
 const isMac =
   typeof navigator !== "undefined" &&
@@ -146,30 +160,82 @@ export function ContribGrid({
   const cols = Math.ceil(days.length / 7);
   const firstDow = days[0]?.date.getDay() ?? 0;
   const pads = Array.from({ length: firstDow });
+  const [hover, setHover] = useState<{
+    text: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
+
+  const onCellEnter = (e: MouseEvent<HTMLDivElement>, c: DayPoint) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHover({
+      text: formatCellTooltip(c.count, c.date),
+      x: rect.left + rect.width / 2,
+      y: rect.top,
+    });
+  };
+
+  // Clamp the tooltip horizontally so long labels don't get clipped by the
+  // viewport edges (heatmap cells span the full window width).
+  useLayoutEffect(() => {
+    const el = tooltipRef.current;
+    if (!el || !hover) return;
+    el.style.transform = "translate(-50%, -100%)";
+    el.style.left = `${hover.x}px`;
+    const rect = el.getBoundingClientRect();
+    const pad = 6;
+    if (rect.left < pad) {
+      el.style.left = `${pad}px`;
+      el.style.transform = "translateY(-100%)";
+    } else if (rect.right > window.innerWidth - pad) {
+      el.style.left = `${window.innerWidth - pad - rect.width}px`;
+      el.style.transform = "translateY(-100%)";
+    }
+  }, [hover]);
+
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
-        gridTemplateRows: `repeat(7, ${cellSize}px)`,
-        gridAutoFlow: "column",
-        gap: `${gap}px`,
-        width: "max-content",
-      }}
-    >
-      {pads.map((_, i) => (
-        <div key={"p" + i} />
-      ))}
-      {days.map((c, i) => (
+    <>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
+          gridTemplateRows: `repeat(7, ${cellSize}px)`,
+          gridAutoFlow: "column",
+          gap: `${gap}px`,
+          width: "max-content",
+        }}
+      >
+        {pads.map((_, i) => (
+          <div key={"p" + i} />
+        ))}
+        {days.map((c, i) => (
+          <div
+            key={i}
+            className="cell"
+            data-l={c.level || undefined}
+            style={{ width: cellSize, height: cellSize }}
+            onMouseEnter={(e) => onCellEnter(e, c)}
+            onMouseLeave={() => setHover(null)}
+          />
+        ))}
+      </div>
+      {hover && (
         <div
-          key={i}
-          className="cell"
-          data-l={c.level || undefined}
-          style={{ width: cellSize, height: cellSize }}
-          title={`${c.count} on ${c.date.toLocaleDateString()}`}
-        />
-      ))}
-    </div>
+          ref={tooltipRef}
+          role="tooltip"
+          className="cell-tooltip"
+          style={{
+            position: "fixed",
+            top: hover.y - 8,
+            left: hover.x,
+            transform: "translate(-50%, -100%)",
+          }}
+        >
+          {hover.text}
+        </div>
+      )}
+    </>
   );
 }
 

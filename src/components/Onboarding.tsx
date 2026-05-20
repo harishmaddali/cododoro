@@ -1,43 +1,33 @@
 import { useState } from "react";
 import { Icon } from "../lib/icons";
 import { Stepper, ToggleRow } from "./shared";
-import { Config, RepoMeta } from "../lib/types";
+import { Config } from "../lib/types";
 
 const ALL_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 type NudgeChoice = "morning" | "midday" | "evening" | "none";
 
 interface Props {
-  repos: RepoMeta[];
-  reposLoading: boolean;
   initial: Config;
   onDone: (cfg: Config) => void;
 }
 
-export function Onboarding({ repos, reposLoading, initial, onDone }: Props) {
+export function Onboarding({ initial, onDone }: Props) {
   const [step, setStep] = useState(0);
   const [dailyGoal, setDailyGoal] = useState(initial.dailyGoal);
   const [streakDays, setStreakDays] = useState<string[]>(initial.streakDays);
-  const [tracked, setTracked] = useState<Record<string, boolean>>(
-    initial.trackedRepos,
-  );
   const [filters, setFilters] = useState(initial.filters);
   const [nudge, setNudge] = useState<NudgeChoice>("evening");
 
-  const steps = ["goal", "schedule", "repos", "filters", "nudge"] as const;
+  const steps = ["goal", "schedule", "filters", "nudge"] as const;
   const total = steps.length;
   const current = steps[step];
 
   const finish = () => {
-    const trackedRepos: Record<string, boolean> = {};
-    for (const r of repos) {
-      trackedRepos[r.nameWithOwner] = tracked[r.nameWithOwner] ?? true;
-    }
     onDone({
       ...initial,
       onboarded: true,
       dailyGoal,
       streakDays,
-      trackedRepos,
       filters,
       nudges: {
         morning: nudge === "morning",
@@ -109,14 +99,6 @@ export function Onboarding({ repos, reposLoading, initial, onDone }: Props) {
           {current === "goal" && <StepGoal value={dailyGoal} onChange={setDailyGoal} />}
           {current === "schedule" && (
             <StepSchedule days={streakDays} onChange={setStreakDays} />
-          )}
-          {current === "repos" && (
-            <StepRepos
-              repos={repos}
-              loading={reposLoading}
-              tracked={tracked}
-              onChange={setTracked}
-            />
           )}
           {current === "filters" && (
             <StepFilters filters={filters} onChange={setFilters} />
@@ -316,108 +298,6 @@ function StepSchedule({
   );
 }
 
-function StepRepos({
-  repos,
-  loading,
-  tracked,
-  onChange,
-}: {
-  repos: RepoMeta[];
-  loading: boolean;
-  tracked: Record<string, boolean>;
-  onChange: (t: Record<string, boolean>) => void;
-}) {
-  const isOn = (id: string) => tracked[id] ?? true;
-  const toggle = (id: string) => onChange({ ...tracked, [id]: !isOn(id) });
-  return (
-    <div>
-      <div className="t-eyebrow" style={{ color: "var(--grass-4)" }}>
-        03 · Repositories
-      </div>
-      <h2 className="t-h1" style={{ margin: "10px 0 8px" }}>
-        What counts toward your goal?
-      </h2>
-      <p className="t-body">Pick the repos you want to push on. Others stay invisible.</p>
-
-      <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 8 }}>
-        {loading && (
-          <div className="t-small" style={{ padding: 8 }}>
-            Loading your repositories…
-          </div>
-        )}
-        {!loading && repos.length === 0 && (
-          <div className="t-small" style={{ padding: 8 }}>
-            No repositories found. You can pick them later.
-          </div>
-        )}
-        {repos.slice(0, 30).map((r) => {
-          const on = isOn(r.nameWithOwner);
-          return (
-            <button
-              key={r.nameWithOwner}
-              onClick={() => toggle(r.nameWithOwner)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                background: "var(--bg-1)",
-                border:
-                  "1px solid " + (on ? "rgba(57,216,120,0.35)" : "var(--line)"),
-                borderRadius: 14,
-                padding: 14,
-                textAlign: "left",
-                transition: "all .15s ease",
-              }}
-            >
-              <div
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 2,
-                  background: r.color,
-                  flexShrink: 0,
-                }}
-              />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 500,
-                    fontFamily: "var(--font-mono)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  <span style={{ color: "var(--fg-2)" }}>{r.owner}/</span>
-                  <span style={{ color: "var(--fg-0)" }}>{r.name}</span>
-                </div>
-                <div className="t-small" style={{ marginTop: 2 }}>
-                  {r.language ?? "—"}
-                </div>
-              </div>
-              <div
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: 6,
-                  background: on ? "var(--grass-4)" : "transparent",
-                  border: "1.5px solid " + (on ? "var(--grass-4)" : "var(--line-2)"),
-                  display: "grid",
-                  placeItems: "center",
-                  color: "#03130a",
-                }}
-              >
-                {on && <Icon name="check" size={14} stroke={3} />}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function StepFilters({
   filters,
   onChange,
@@ -435,7 +315,7 @@ function StepFilters({
   return (
     <div>
       <div className="t-eyebrow" style={{ color: "var(--grass-4)" }}>
-        04 · What's a real commit?
+        03 · What's a real commit?
       </div>
       <h2 className="t-h1" style={{ margin: "10px 0 8px" }}>
         Filter out the noise.
@@ -475,7 +355,7 @@ function StepNudge({
   return (
     <div>
       <div className="t-eyebrow" style={{ color: "var(--grass-4)" }}>
-        05 · Nudges
+        04 · Nudges
       </div>
       <h2 className="t-h1" style={{ margin: "10px 0 8px" }}>
         When should we tap you?

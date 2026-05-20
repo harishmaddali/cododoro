@@ -35,7 +35,6 @@ export interface Config {
   onboarded: boolean;
   dailyGoal: number;
   streakDays: string[];
-  trackedRepos: Record<string, boolean>;
   repoGoals: Record<string, number>;
   filters: Filters;
   nudges: Nudges;
@@ -49,7 +48,6 @@ export const defaultConfig: Config = {
   onboarded: false,
   dailyGoal: 3,
   streakDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-  trackedRepos: {},
   repoGoals: {},
   filters: { merge: true, docs: true, lock: true, revert: false, empty: true },
   nudges: {
@@ -89,17 +87,7 @@ export interface RepoEntry {
   url: string;
   today: number;
   week: number;
-  tracked: boolean;
   goal: number;
-}
-
-export interface RepoMeta {
-  nameWithOwner: string;
-  owner: string;
-  name: string;
-  language: string | null;
-  color: string;
-  url: string;
 }
 
 export interface BestDay {

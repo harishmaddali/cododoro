@@ -117,7 +117,6 @@ pub struct RepoEntry {
     pub url: String,
     pub today: u32,
     pub week: u32,
-    pub tracked: bool,
     pub goal: u32,
 }
 
@@ -174,7 +173,7 @@ const GITHUB_GRAPHQL_URL: &str = "https://api.github.com/graphql";
 const REQUEST_TIMEOUT_SECS: u64 = 30;
 
 /// Fetch everything the UI needs and fold it into a single snapshot using the
-/// user's stored configuration (goal, tracked repos, commit filters, schedule).
+/// user's stored configuration (goal, commit filters, schedule).
 pub async fn build_snapshot(config: &Config) -> Result<AppSnapshot, String> {
     let token = fetch_cli_token().await?;
     let api = GitHubApi::new(token)?;
@@ -227,12 +226,6 @@ pub async fn build_snapshot(config: &Config) -> Result<AppSnapshot, String> {
         recent_commits,
         repos,
     })
-}
-
-pub async fn list_repos() -> Result<Vec<RepoMeta>, String> {
-    let token = fetch_cli_token().await?;
-    let api = GitHubApi::new(token)?;
-    api.fetch_user_repos().await
 }
 
 async fn fetch_today(
@@ -350,11 +343,6 @@ fn merge_repos(
         .map(|full| {
             let m = meta.iter().find(|m| m.name_with_owner == full);
             let (owner, name) = split_repo(&full);
-            let tracked = config
-                .tracked_repos
-                .get(&full)
-                .copied()
-                .unwrap_or(m.is_some());
             let goal = config.repo_goals.get(&full).copied().unwrap_or(0);
             RepoEntry {
                 name_with_owner: full.clone(),
@@ -369,7 +357,6 @@ fn merge_repos(
                     .unwrap_or_else(|| format!("https://github.com/{full}")),
                 today: today.get(&full).copied().unwrap_or(0),
                 week: week.get(&full).copied().unwrap_or(0),
-                tracked,
                 goal,
             }
         })

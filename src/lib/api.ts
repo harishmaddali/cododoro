@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { AppSnapshot, Config, GhStatus, RepoMeta } from "./types";
+import { AppSnapshot, Config, GhStatus } from "./types";
 
 export function authStatus(): Promise<GhStatus> {
   return invoke<GhStatus>("auth_status");
@@ -20,10 +20,6 @@ export function loadSnapshot(): Promise<AppSnapshot | null> {
 
 export function refresh(): Promise<AppSnapshot> {
   return invoke<AppSnapshot>("refresh");
-}
-
-export function listRepos(): Promise<RepoMeta[]> {
-  return invoke<RepoMeta[]>("list_repos");
 }
 
 export function notifyTest(): Promise<void> {

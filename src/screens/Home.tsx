@@ -37,8 +37,7 @@ export function Home({
   const dailyGoal = snapshot.dailyGoal;
   const streak = snapshot.streak;
   const hours = Math.max(1, 24 - new Date().getHours());
-  const trackedRepos = snapshot.repos.filter((r) => r.tracked);
-  const todaysRepos = trackedRepos.filter((r) => r.today > 0);
+  const todaysRepos = snapshot.repos.filter((r) => r.today > 0);
   const weekTotal = snapshot.repos.reduce((s, r) => s + r.week, 0);
   const greeting = snapshot.name?.split(" ")[0] || snapshot.login;
   const today = new Date().toLocaleDateString(undefined, {

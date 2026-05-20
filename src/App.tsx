@@ -14,7 +14,6 @@ import { NudgesScreen } from "./screens/Nudges";
 import {
   authStatus,
   getConfig,
-  listRepos,
   loadSnapshot,
   refresh as apiRefresh,
   saveConfig,
@@ -26,7 +25,6 @@ import {
   defaultConfig,
   GhStatus,
   Overlay,
-  RepoMeta,
   Stage,
   Tab,
   toDayPoints,
@@ -63,8 +61,6 @@ export default function App() {
   const [status, setStatus] = useState<GhStatus | null>(null);
   const [config, setConfig] = useState<Config>(defaultConfig);
   const [snapshot, setSnapshot] = useState<AppSnapshot | null>(null);
-  const [repos, setRepos] = useState<RepoMeta[]>([]);
-  const [reposLoading, setReposLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -112,18 +108,6 @@ export default function App() {
     const s = await authStatus();
     setStatus(s);
     return s;
-  }, []);
-
-  const loadReposOnce = useCallback(async () => {
-    setReposLoading(true);
-    try {
-      const r = await listRepos();
-      setRepos(r);
-    } catch {
-      setRepos([]);
-    } finally {
-      setReposLoading(false);
-    }
   }, []);
 
   // Boot
@@ -210,9 +194,8 @@ export default function App() {
       doRefresh();
     } else {
       setStage("onboarding");
-      loadReposOnce();
     }
-  }, [config.onboarded, doRefresh, loadReposOnce]);
+  }, [config.onboarded, doRefresh]);
 
   const finishOnboarding = useCallback(
     async (cfg: Config) => {
@@ -272,7 +255,6 @@ export default function App() {
               doRefresh();
             } else {
               setStage("onboarding");
-              loadReposOnce();
             }
           }
         }}
@@ -280,12 +262,7 @@ export default function App() {
     );
   } else if (stage === "onboarding") {
     body = (
-      <Onboarding
-        repos={repos}
-        reposLoading={reposLoading}
-        initial={config}
-        onDone={finishOnboarding}
-      />
+      <Onboarding initial={config} onDone={finishOnboarding} />
     );
   } else if (!snapshot) {
     body = (

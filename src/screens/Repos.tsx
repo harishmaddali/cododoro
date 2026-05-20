@@ -10,11 +10,9 @@ interface Props {
 }
 
 export function ReposScreen({ snapshot, days, onOpenRepo }: Props) {
-  const [filter, setFilter] = useState<"all" | "tracked" | "active">("all");
+  const [filter, setFilter] = useState<"all" | "active">("all");
   const repos = snapshot.repos;
-  const shown = repos.filter((r) =>
-    filter === "all" ? true : filter === "tracked" ? r.tracked : r.today > 0,
-  );
+  const shown = repos.filter((r) => (filter === "all" ? true : r.today > 0));
 
   return (
     <div className="screen">
@@ -25,7 +23,6 @@ export function ReposScreen({ snapshot, days, onOpenRepo }: Props) {
       <div style={{ padding: "12px 20px 8px", display: "flex", gap: 8 }}>
         {[
           { id: "all", label: "All" },
-          { id: "tracked", label: "Tracked" },
           { id: "active", label: "Active today" },
         ].map((f) => (
           <button
@@ -119,14 +116,6 @@ function RepoCard({
           <span className="t-small" style={{ fontSize: 11.5 }}>
             {repo.language ?? "—"}
           </span>
-          {repo.tracked && (
-            <span
-              className="pill pill-green"
-              style={{ height: 18, fontSize: 9.5, padding: "0 7px" }}
-            >
-              tracked
-            </span>
-          )}
         </div>
         <div
           style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 14 }}

@@ -1,0 +1,15 @@
+queue_rules:
+  - name: Default merge queue
+    merge_method: merge
+merge_queue:
+  max_parallel_checks: 10
+merge_protections:
+  - name: Do not merge outdated PRs
+    description: Make sure PRs are almost up to date before merging
+    if:
+      - base = main
+    success_conditions:
+      - '#commits-behind <= 10'
+merge_protections_settings:
+  reporting_method: check-runs
+  auto_merge_conditions: true

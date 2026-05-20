@@ -86,6 +86,7 @@ textarea {
 .topbar {
   height: 38px;
   flex: 0 0 38px;
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -97,6 +98,19 @@ textarea {
 }
 .topbar.mac {
   padding-left: 78px;
+}
+.topbar-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+}
+.topbar-right {
+  margin-left: auto;
+  position: relative;
+  z-index: 1;
 }
 
 /* Tab bar */

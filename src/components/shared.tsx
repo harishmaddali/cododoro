@@ -60,10 +60,14 @@ export function TopBar({ right }: { right?: ReactNode }) {
       onMouseDown={onMouseDown}
       className={"topbar" + (isMac ? " mac" : "")}
     >
-      <div data-tauri-drag-region style={{ flex: 1, pointerEvents: "none" }}>
+      <div
+        data-tauri-drag-region
+        className="topbar-center"
+        style={{ pointerEvents: "none" }}
+      >
         <Logo size={18} />
       </div>
-      {right}
+      {right && <div className="topbar-right">{right}</div>}
     </div>
   );
 }

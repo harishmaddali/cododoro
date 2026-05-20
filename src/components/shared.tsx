@@ -343,13 +343,14 @@ export function Stepper({
   value,
   onChange,
   min = 1,
-  max = 20,
+  max = 9999,
 }: {
   value: number;
   onChange: (v: number) => void;
   min?: number;
   max?: number;
 }) {
+  const clamp = (n: number) => Math.max(min, Math.min(max, n));
   return (
     <div
       style={{
@@ -377,12 +378,39 @@ export function Stepper({
       >
         <Icon name="x" size={16} />
       </button>
-      <div
+      <input
+        type="number"
         className="t-mono"
-        style={{ flex: 1, textAlign: "center", fontSize: 28, fontWeight: 500 }}
-      >
-        {value}
-      </div>
+        value={value}
+        min={min}
+        max={max}
+        inputMode="numeric"
+        onChange={(e) => {
+          const raw = e.target.value;
+          if (raw === "") return;
+          const n = parseInt(raw, 10);
+          if (!Number.isFinite(n)) return;
+          onChange(clamp(n));
+        }}
+        onBlur={(e) => {
+          const n = parseInt(e.target.value, 10);
+          if (!Number.isFinite(n)) onChange(min);
+          else onChange(clamp(n));
+        }}
+        style={{
+          flex: 1,
+          textAlign: "center",
+          fontSize: 28,
+          fontWeight: 500,
+          background: "transparent",
+          border: "none",
+          outline: "none",
+          color: "var(--fg-0)",
+          width: "100%",
+          minWidth: 0,
+          MozAppearance: "textfield",
+        }}
+      />
       <button
         onClick={() => onChange(Math.min(max, value + 1))}
         aria-label="Increase"

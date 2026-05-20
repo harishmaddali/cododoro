@@ -200,37 +200,33 @@ function StepGoal({
         </div>
       </div>
 
-      <Stepper value={value} onChange={onChange} min={1} max={12} />
+      <Stepper value={value} onChange={onChange} min={1} max={9999} />
 
       <div
         style={{
-          display: "flex",
+          display: "grid",
+          gridTemplateColumns: "repeat(3, max-content)",
           gap: 8,
           marginTop: 18,
           justifyContent: "center",
-          flexWrap: "wrap",
         }}
       >
-        {[
-          { v: 1, label: "Light" },
-          { v: 3, label: "Steady" },
-          { v: 5, label: "Heavy" },
-          { v: 8, label: "Beast" },
-        ].map((p) => (
+        {[30, 100, 1000, 5000].map((v, i) => (
           <button
-            key={p.v}
-            onClick={() => onChange(p.v)}
+            key={v}
+            onClick={() => onChange(v)}
             className="pill"
             style={{
               height: 30,
               padding: "0 14px",
               fontSize: 12,
-              background: value === p.v ? "rgba(57,216,120,0.12)" : "var(--bg-2)",
-              color: value === p.v ? "var(--grass-4)" : "var(--fg-1)",
-              borderColor: value === p.v ? "rgba(57,216,120,0.3)" : "var(--line)",
+              background: value === v ? "rgba(57,216,120,0.12)" : "var(--bg-2)",
+              color: value === v ? "var(--grass-4)" : "var(--fg-1)",
+              borderColor: value === v ? "rgba(57,216,120,0.3)" : "var(--line)",
+              gridColumn: i === 3 ? "2" : undefined,
             }}
           >
-            {p.v} · {p.label}
+            {v}
           </button>
         ))}
       </div>

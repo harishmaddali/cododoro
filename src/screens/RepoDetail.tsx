@@ -192,7 +192,7 @@ export function RepoDetail({
               >
                 Per-repo daily goal (0 = use the global goal)
               </div>
-              <Stepper value={goal} onChange={setGoal} min={0} max={10} />
+              <Stepper value={goal} onChange={setGoal} min={0} max={9999} />
             </div>
           )}
         </div>

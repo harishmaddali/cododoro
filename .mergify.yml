@@ -1,3 +1,4 @@
+merge_bot_account: harishmaddali
 queue_rules:
   - name: Default merge queue
     merge_method: merge

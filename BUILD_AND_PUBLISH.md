@@ -10,7 +10,7 @@ This guide covers how to build the cododoro desktop application and publish it t
 
 ## Prerequisites
 
-- **Node.js** 18+ and npm
+- **Node.js** 20+ and **pnpm** 10+ (`corepack enable` will pick the pinned `packageManager`)
 - **Rust** (for Tauri) - Install from https://rustup.rs/
 - **GitHub CLI** - Install from https://cli.github.com
 - **Git** for version control
@@ -19,45 +19,50 @@ This guide covers how to build the cododoro desktop application and publish it t
   - **Windows**: Microsoft Visual Studio Build Tools
   - **Linux**: gcc, libssl-dev, libgtk-3-dev, libayatana-appindicator3-dev, librsvg2-dev
 
+> All commands below are run from the **repo root**. The desktop app lives in
+> `apps/desktop-app/` and is named `@cododoro/desktop-app` in the pnpm
+> workspace. Use `pnpm -F @cododoro/desktop-app <script>` or one of the
+> root-level aliases (`pnpm tauri`, `pnpm build:desktop`, …).
+
 ## Build Scripts
 
 ```bash
-# Development - runs the app with hot reload
-npm run tauri:dev
+# Development — runs the app with hot reload
+pnpm tauri dev
 
 # Production build for current platform
-npm run tauri:build
+pnpm tauri build
 
-# Platform-specific builds
-npm run tauri:build:macos             # Intel Macs (x86_64-apple-darwin)
-npm run tauri:build:macos-arm64       # Apple Silicon / M1+ (aarch64-apple-darwin)
-npm run tauri:build:macos-universal   # Universal binary (Intel + Apple Silicon)
-npm run tauri:build:windows           # Windows (x86_64-pc-windows-msvc)
-npm run tauri:build:linux             # Linux (x86_64-unknown-linux-gnu)
+# Platform-specific builds (run via -F into the workspace)
+pnpm -F @cododoro/desktop-app tauri:build:macos             # Intel Macs (x86_64-apple-darwin)
+pnpm -F @cododoro/desktop-app tauri:build:macos-arm64       # Apple Silicon / M1+ (aarch64-apple-darwin)
+pnpm -F @cododoro/desktop-app tauri:build:macos-universal   # Universal binary (Intel + Apple Silicon)
+pnpm -F @cododoro/desktop-app tauri:build:windows           # Windows (x86_64-pc-windows-msvc)
+pnpm -F @cododoro/desktop-app tauri:build:linux             # Linux (x86_64-unknown-linux-gnu)
 ```
 
 ## Where Builds Go
 
-Built binaries are located in `src-tauri/target/release/bundle/`:
+Built binaries are located in `apps/desktop-app/src-tauri/target/release/bundle/`:
 
 - **macOS**: `.dmg` and `.app.tar.gz` files
-- **Windows**: `.msi` and `.exe` files  
+- **Windows**: `.msi` and `.exe` files
 - **Linux**: `.AppImage` and `.deb` files
 
 ## Development
 
 ```bash
-# Install dependencies
-npm install
+# Install dependencies (resolves both apps + the root)
+pnpm install
 
 # Start development server with Tauri
-npm run tauri:dev
+pnpm tauri dev
 
-# Type checking
-npm run typecheck
+# Type checking (across the whole workspace)
+pnpm typecheck
 
 # Web build only (no Tauri)
-npm run build
+pnpm build:desktop
 ```
 
 ## Publishing to Users with Automatic Updates
@@ -93,17 +98,15 @@ The updater configuration will be added in the Rust code. Copy the public key fr
 
 Add these secrets to your repository (Settings → Secrets and variables → Actions):
 
-1. **`TAURI_SIGNING_PRIVATE_KEY`**: Contents of `src-tauri/private_key.pem`
+1. **`TAURI_SIGNING_PRIVATE_KEY`**: Contents of `apps/desktop-app/src-tauri/private_key.pem`
    ```bash
-   cat src-tauri/private_key.pem | base64
+   cat apps/desktop-app/src-tauri/private_key.pem | base64
    ```
 
 2. **`TAURI_SIGNING_PASSWORD`**: The password you set in Step 1
 
-**Never commit the private key!** Add to `.gitignore`:
-```bash
-echo "src-tauri/private_key.pem" >> .gitignore
-```
+**Never commit the private key!** It is already covered by `.gitignore` under
+`apps/desktop-app/src-tauri/private_key.pem`.
 
 ### Step 4: Publish a Release
 
@@ -122,18 +125,22 @@ The `.github/workflows/release.yml` workflow will:
    - `feat!:` or a `BREAKING CHANGE:` footer → major (`0.1.0` → `1.0.0`)
    - a plain (non-Conventional) commit → patch
    - only `docs/chore/style/refactor/test/build/ci` commits → **no release**
-2. **Bump every version file** (`package.json`, `package-lock.json`,
-   `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json`)
-   via `scripts/set-version.mjs`, commit it back to `main` as
+2. **Bump every version file** (`apps/desktop-app/package.json`,
+   `apps/desktop-app/src-tauri/Cargo.toml`,
+   `apps/desktop-app/src-tauri/Cargo.lock`,
+   `apps/desktop-app/src-tauri/tauri.conf.json`) via
+   `apps/desktop-app/scripts/set-version.mjs`, refresh the root
+   `pnpm-lock.yaml`, commit them back to `main` as
    `chore(release): vX.Y.Z [skip ci]`, and push a `vX.Y.Z` tag.
 3. **Call `.github/workflows/publish-release.yml`** on that tag, which:
    - **Builds** for macOS (Intel + ARM), Windows, and Linux
    - **Signs** each artifact with your private key
    - **Creates a GitHub Release** with all binaries
 
-Pushes that change **only** docs (`**/*.md`, `docs/**`), CI (`.github/**`),
-`LICENSE` or `.gitignore` are ignored. To skip a release for any other push,
-put `[skip release]` in the commit message.
+Pushes that change **only** docs (`**/*.md`, `apps/desktop-app/docs/**`),
+the landing page (`apps/landing/**`), CI (`.github/**`), `LICENSE` or
+`.gitignore` are ignored. To skip a release for any other push, put
+`[skip release]` in the commit message.
 
 > The first ever release ships the current `package.json` version as-is
 > (so it becomes `v0.1.0`); every release after that is bumped from the
@@ -142,10 +149,10 @@ put `[skip release]` in the commit message.
 **Manual / local alternative** — cut a release without waiting for `main`:
 
 ```bash
-npm run version:next        # preview the version that would be released
-npm run release:local       # compute, bump, commit, tag and push it
-npm run release:local -- --dry-run   # show what it would do, change nothing
-npm run release:local -- 0.4.0       # force an explicit version
+pnpm -F @cododoro/desktop-app version:next            # preview the next version
+pnpm -F @cododoro/desktop-app release:local           # compute, bump, commit, tag, push
+pnpm -F @cododoro/desktop-app release:local --dry-run # show what it would do, change nothing
+pnpm -F @cododoro/desktop-app release:local 0.4.0     # force an explicit version
 ```
 
 Pushing a `v*` tag (by any means) always triggers the build/publish workflow.
@@ -192,15 +199,16 @@ If you want to publish without GitHub Actions:
 
 ```bash
 # Build locally (run each on its matching host OS)
-npm run tauri:build:macos-universal   # on macOS
-npm run tauri:build:windows           # on Windows
-npm run tauri:build:linux             # on Linux
+pnpm -F @cododoro/desktop-app tauri:build:macos-universal   # on macOS
+pnpm -F @cododoro/desktop-app tauri:build:windows           # on Windows
+pnpm -F @cododoro/desktop-app tauri:build:linux             # on Linux
 
-# Create GitHub release manually (bundles land under target/<triple>/release/bundle)
+# Create GitHub release manually (bundles land under
+# apps/desktop-app/src-tauri/target/<triple>/release/bundle)
 gh release create v0.2.0 \
-  src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg \
-  src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi \
-  src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage \
+  apps/desktop-app/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg \
+  apps/desktop-app/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi \
+  apps/desktop-app/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage \
   --title "cododoro v0.2.0" \
   --notes "See assets to download and install"
 ```
@@ -217,8 +225,8 @@ export APPLE_CERTIFICATE="path/to/certificate.p8"
 export APPLE_CERTIFICATE_PASSWORD="password"
 export APPLE_SIGNING_IDENTITY="Developer ID Application: Your Name"
 
-npm run tauri:build:macos
-npm run tauri:build:macos-arm64
+pnpm -F @cododoro/desktop-app tauri:build:macos
+pnpm -F @cododoro/desktop-app tauri:build:macos-arm64
 ```
 
 See [Apple Developer docs](https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution) for notarization.
@@ -231,66 +239,71 @@ export WINDOWS_SIGN_TOOL="path/to/signtool.exe"
 export WINDOWS_SIGN_CERTIFICATE="path/to/certificate.pfx"
 export WINDOWS_SIGN_PASSWORD="password"
 
-npm run tauri:build:windows
+pnpm -F @cododoro/desktop-app tauri:build:windows
 ```
 
 This is optional—the Tauri update signing is sufficient for security.
 
 ## Version Management
 
-The version is pinned in **five** places and they must stay identical:
+The version is pinned in **four** files and they must stay identical:
 
-- `package.json`
-- `package-lock.json`
-- `src-tauri/Cargo.toml`
-- `src-tauri/Cargo.lock`
-- `src-tauri/tauri.conf.json`
+- `apps/desktop-app/package.json`
+- `apps/desktop-app/src-tauri/Cargo.toml`
+- `apps/desktop-app/src-tauri/Cargo.lock`
+- `apps/desktop-app/src-tauri/tauri.conf.json`
 
-> ⚠️ `npm version` only updates `package.json`/`package-lock.json` — it does
-> **not** touch the `src-tauri/*` files, so it must not be used to release.
-> Use the scripts below instead; they keep all five in lockstep.
+The workspace `pnpm-lock.yaml` at the repo root is regenerated from
+`package.json` on every install — the release pipeline refreshes it via
+`pnpm install --lockfile-only`, so it tracks automatically.
+
+> ⚠️ `npm version` / `pnpm version` only touch the `package.json` they're
+> invoked on, so they must not be used to release. Use the scripts below
+> instead; they keep all four pinned files in lockstep.
 
 ### Automatic (Recommended)
 
 You don't set the version by hand. On push to `main`, `release.yml` runs
-`scripts/next-version.mjs` to derive the next version from
+`apps/desktop-app/scripts/next-version.mjs` to derive the next version from
 [Conventional Commits](https://www.conventionalcommits.org/) and
-`scripts/set-version.mjs` to write it everywhere. See
+`apps/desktop-app/scripts/set-version.mjs` to write it everywhere. See
 [Step 4: Publish a Release](#step-4-publish-a-release) for the bump rules.
 
 ```bash
-npm run version:next   # preview the next version (reads git history, no writes)
+pnpm -F @cododoro/desktop-app version:next   # preview the next version
 ```
 
 ### Manual
 
-Set an explicit version across all five files, then tag:
+Set an explicit version across all four files, then tag:
 
 ```bash
-npm run version:set -- 0.2.0          # writes all five files
+pnpm -F @cododoro/desktop-app version:set 0.2.0     # writes all four files
 # or do the full bump+commit+tag+push in one step:
-npm run release:local -- 0.2.0
+pnpm -F @cododoro/desktop-app release:local 0.2.0
 ```
 
-`scripts/set-version.mjs` validates the argument is semver and edits only the
-version field in each file (verified to produce a minimal, surgical diff).
+`set-version.mjs` validates the argument is semver and edits only the version
+field in each file (verified to produce a minimal, surgical diff). The
+`release:local` script then refreshes `pnpm-lock.yaml` and commits all five
+paths together.
 
 ## Security: Protecting Your Private Key
 
 **Never commit the private key!** It's used to sign updates and could be exploited if leaked.
 
 ```bash
-# Add to .gitignore
-echo "src-tauri/private_key.pem" >> .gitignore
-echo ".env*" >> .gitignore
+# Both entries already live in the repo's .gitignore:
+#   apps/desktop-app/src-tauri/private_key.pem
+#   .env / .env.*.local
 
 # If accidentally committed, contact GitHub to rotate secrets
-git rm --cached src-tauri/private_key.pem
+git rm --cached apps/desktop-app/src-tauri/private_key.pem
 git commit -m "Remove private key from history"
 ```
 
 **Store safely:**
-- Local development: `src-tauri/private_key.pem` (local only)
+- Local development: `apps/desktop-app/src-tauri/private_key.pem` (local only)
 - CI/CD: Use GitHub Secrets (`TAURI_SIGNING_PRIVATE_KEY`)
 - Backups: Encrypted secure storage (not email/Slack)
 
@@ -298,8 +311,8 @@ git commit -m "Remove private key from history"
 
 **"Keypair generation failed"**
 ```bash
-# Ensure you're in the repo root
-cd /path/to/cododoro
+# Run from the desktop-app workspace so paths resolve
+cd /path/to/cododoro/apps/desktop-app
 ./scripts/setup-updater.sh
 ```
 
@@ -308,8 +321,8 @@ cd /path/to/cododoro
 rustup update
 rustup target install wasm32-unknown-unknown
 cargo clean
-npm install
-npm run tauri:build
+pnpm install
+pnpm tauri build
 ```
 
 **"TAURI_SIGNING_PRIVATE_KEY not found" in GitHub Actions:**
@@ -338,17 +351,17 @@ npm run tauri:build
 - Width: 420px (min: 380px)
 - Height: 620px (min: 500px)
 
-Edit in `src-tauri/tauri.conf.json` under `app.windows[0]`
+Edit in `apps/desktop-app/src-tauri/tauri.conf.json` under `app.windows[0]`
 
 ## Quick Reference Checklist
 
 One-time setup (required before the first automated release can sign builds):
 
-- [ ] Run `./scripts/setup-updater.sh` and save the public key
-- [ ] Update `src-tauri/tauri.conf.json` `plugins.updater.pubkey` with the public key
+- [ ] Run `apps/desktop-app/scripts/setup-updater.sh` and save the public key
+- [ ] Update `apps/desktop-app/src-tauri/tauri.conf.json` `plugins.updater.pubkey` with the public key
 - [ ] Add `TAURI_SIGNING_PRIVATE_KEY` to GitHub Secrets
 - [ ] Add `TAURI_SIGNING_PASSWORD` to GitHub Secrets
-- [ ] Confirm `src-tauri/private_key.pem` is git-ignored (already in `.gitignore`)
+- [ ] Confirm `apps/desktop-app/src-tauri/private_key.pem` is git-ignored (already in `.gitignore`)
 - [ ] Allow GitHub Actions to push to `main` (Settings → Actions → Workflow
       permissions → *Read and write*; if `main` is a protected branch, allow
       the `github-actions[bot]` to bypass it or releases can't commit the bump)

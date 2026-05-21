@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body {
+    @apply bg-bg-0 text-fg-0 font-sans antialiased;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  /* Smooth scrolling for anchor jumps to #download etc. */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  *:focus-visible {
+    @apply outline-none ring-2 ring-grass-4 ring-offset-2 ring-offset-bg-0 rounded-sm;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl font-semibold text-[15px] transition-transform duration-150 active:scale-[0.985];
+  }
+  .btn-primary {
+    @apply bg-grass-4 text-[#03130a] shadow-glow hover:brightness-110;
+  }
+  .btn-secondary {
+    @apply bg-bg-2 text-fg-0 border border-line hover:border-line-2;
+  }
+  .btn-dark {
+    @apply bg-[#0b0e13] text-fg-0 border border-line-2 hover:border-grass-3;
+  }
+  .card {
+    @apply bg-bg-1 border border-line rounded-lg p-6;
+  }
+  .eyebrow {
+    @apply text-[11px] font-semibold tracking-[0.12em] uppercase text-fg-2;
+  }
+}

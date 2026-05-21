@@ -1,0 +1,22 @@
+{
+  "name": "@cododoro/landing",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev --host 0.0.0.0",
+    "build": "astro build",
+    "preview": "astro preview --host 0.0.0.0",
+    "typecheck": "astro check",
+    "format": "prettier --write \"src/**/*.{astro,ts,tsx,css,html,json,md}\"",
+    "format:check": "prettier --check \"src/**/*.{astro,ts,tsx,css,html,json,md}\""
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.4",
+    "@astrojs/tailwind": "^6.0.2",
+    "astro": "^5.18.1",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.6.3"
+  },
+  "devDependencies": {}
+}

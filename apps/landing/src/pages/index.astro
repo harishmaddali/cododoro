@@ -1,0 +1,149 @@
+---
+import Base from "../layouts/Base.astro";
+import Logo from "../components/Logo.astro";
+import FeatureCard from "../components/FeatureCard.astro";
+import DownloadButton from "../components/DownloadButton.astro";
+
+const repoUrl = "https://github.com/harishmaddali/cododoro";
+const year = new Date().getFullYear();
+---
+
+<Base title="Cododoro — Pomodoro for shipping">
+  <header class="w-full border-b border-line bg-bg-0/80 backdrop-blur sticky top-0 z-10">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+      <a href="/" aria-label="Cododoro home" class="inline-flex items-center shrink-0">
+        <Logo size={22} />
+      </a>
+      <nav aria-label="Primary" class="flex items-center gap-4 sm:gap-6 text-[13px] text-fg-1">
+        <a href="#features" class="hover:text-fg-0">Features</a>
+        <a href="#download" class="hover:text-fg-0">Download</a>
+        <a href={repoUrl} target="_blank" rel="noopener noreferrer" class="hover:text-fg-0">
+          GitHub
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="flex-1">
+    <!-- Hero -->
+    <section
+      aria-labelledby="hero-title"
+      class="relative overflow-hidden bg-dot-grid"
+      style="background-size: auto, 18px 18px;"
+    >
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 pt-24 pb-20 text-center">
+        <div class="flex justify-center mb-8">
+          <Logo size={56} showWordmark={false} />
+        </div>
+        <p class="eyebrow mb-4">A small desktop app for shippers</p>
+        <h1
+          id="hero-title"
+          class="text-4xl sm:text-5xl md:text-6xl font-semibold tracking-[-0.02em] leading-[1.05] text-fg-0"
+        >
+          Cododoro
+        </h1>
+        <p class="mt-6 text-lg md:text-xl text-fg-1 max-w-2xl mx-auto leading-relaxed">
+          Pomodoro for shipping. Set a commit goal, ride the heatmap.
+        </p>
+        <div class="mt-10 flex items-center justify-center gap-3 flex-wrap">
+          <a href="#download" class="btn btn-primary">Get Cododoro</a>
+          <a href={repoUrl} target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+            View on GitHub
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section
+      id="features"
+      aria-labelledby="features-title"
+      class="max-w-6xl mx-auto px-4 sm:px-6 py-20"
+    >
+      <p class="eyebrow text-center mb-3">What it does</p>
+      <h2
+        id="features-title"
+        class="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-[-0.02em] text-center text-fg-0 mb-12"
+      >
+        Three small things, done well.
+      </h2>
+      <div class="grid gap-5 md:grid-cols-3">
+        <FeatureCard
+          icon="◎"
+          title="Goal wizard"
+          body="Onboard once: pick a daily commit goal, the repos that count, and the accent that matches your terminal."
+        />
+        <FeatureCard
+          icon="◐"
+          title="Pomodoro timer"
+          body="A focused session loop with native nudges when you’ve drifted from today’s goal, not from your editor."
+        />
+        <FeatureCard
+          icon="▦"
+          title="Contribution heatmap"
+          body="Your local GitHub activity, rendered as the heatmap you already love — with per-day tooltips and streaks."
+        />
+      </div>
+    </section>
+
+    <!-- Screenshot placeholder -->
+    <section aria-labelledby="screenshot-title" class="max-w-5xl mx-auto px-4 sm:px-6 py-12">
+      <h2 id="screenshot-title" class="sr-only">Application screenshot</h2>
+      <div
+        role="img"
+        aria-label="Screenshot of Cododoro coming soon"
+        class="card aspect-[16/9] flex items-center justify-center text-fg-2 bg-bg-1 border-dashed"
+      >
+        <span class="eyebrow">Screenshot coming soon</span>
+      </div>
+    </section>
+
+    <!-- Download -->
+    <section
+      id="download"
+      aria-labelledby="download-title"
+      class="max-w-6xl mx-auto px-4 sm:px-6 py-20"
+    >
+      <p class="eyebrow text-center mb-3">Get it</p>
+      <h2
+        id="download-title"
+        class="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-[-0.02em] text-center text-fg-0 mb-4"
+      >
+        Pick your platform.
+      </h2>
+      <p class="text-center text-fg-1 mb-10 max-w-xl mx-auto">
+        Signed installers ship from
+        <a
+          href={`${repoUrl}/releases`}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-grass-4 hover:underline"
+        >
+          GitHub Releases
+        </a>
+        with built-in auto-update.
+      </p>
+      <div class="flex flex-wrap gap-4 justify-center">
+        <DownloadButton platform="macOS" />
+        <DownloadButton platform="Windows" />
+        <DownloadButton platform="Linux" />
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-line mt-10">
+    <div
+      class="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4 text-[13px] text-fg-2"
+    >
+      <span>© {year} Harish Maddali</span>
+      <a
+        href={`${repoUrl}/blob/main/LICENSE`}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="hover:text-fg-0"
+      >
+        MIT License
+      </a>
+    </div>
+  </footer>
+</Base>

@@ -1,0 +1,31 @@
+---
+// Mirrors the desktop-app Logo in apps/desktop-app/src/components/shared.tsx:
+// a 3×3 grid of "contribution cells" using the green palette. Re-implemented
+// as a pure Astro component (no React) so the landing stays static.
+interface Props {
+  size?: number;
+  showWordmark?: boolean;
+}
+
+const { size = 26, showWordmark = true } = Astro.props;
+
+// Same level pattern as the React Logo: [1,2,3,4,2,4,3,4,4] mapped to grass-1..4.
+const levels = [1, 2, 3, 4, 2, 4, 3, 4, 4] as const;
+const levelToColor: Record<(typeof levels)[number], string> = {
+  1: "#0e3a23",
+  2: "#14633a",
+  3: "#1f9d57",
+  4: "#39d878",
+};
+---
+
+<div class="inline-flex items-center gap-2">
+  <div
+    class="grid grid-cols-3 grid-rows-3"
+    style={`width: ${size}px; height: ${size}px; gap: 2px;`}
+    aria-hidden="true"
+  >
+    {levels.map((l) => <div style={`background: ${levelToColor[l]}; border-radius: 1.5px;`} />)}
+  </div>
+  {showWordmark && <span class="text-[15px] font-semibold tracking-[-0.01em]">Cododoro</span>}
+</div>

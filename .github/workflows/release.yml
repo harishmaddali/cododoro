@@ -17,7 +17,8 @@ on:
     branches: [main]
     paths-ignore:
       - '**/*.md'
-      - 'docs/**'
+      - 'apps/desktop-app/docs/**'
+      - 'apps/landing/**'
       - '.github/**'
       - 'LICENSE'
       - '.gitignore'
@@ -46,14 +47,20 @@ jobs:
       - name: Fetch tags
         run: git fetch --tags --force
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
+          cache: 'pnpm'
 
       - name: Compute next version (Conventional Commits)
         id: next
-        run: node scripts/next-version.mjs
+        run: node apps/desktop-app/scripts/next-version.mjs
 
       - name: Bump, commit and tag
         id: bump
@@ -64,10 +71,13 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          node scripts/set-version.mjs "$NEXT"
+          node apps/desktop-app/scripts/set-version.mjs "$NEXT"
+          pnpm install --lockfile-only
 
-          git add package.json package-lock.json \
-            src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json
+          git add apps/desktop-app/package.json pnpm-lock.yaml \
+            apps/desktop-app/src-tauri/Cargo.toml \
+            apps/desktop-app/src-tauri/Cargo.lock \
+            apps/desktop-app/src-tauri/tauri.conf.json
           git commit -m "chore(release): v${NEXT} [skip ci]"
           git tag "v${NEXT}"
           git push origin HEAD:main

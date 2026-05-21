@@ -1,16 +1,13 @@
 # Dependencies
 node_modules/
-**/node_modules/
 
 # Build output
 dist/
 dist-ssr/
-apps/*/dist/
-apps/*/.astro/
 
 # Tauri
-apps/desktop-app/src-tauri/target/
-apps/desktop-app/src-tauri/gen/
+src-tauri/target/
+src-tauri/gen/
 
 # Editor
 .vscode/
@@ -30,4 +27,4 @@ yarn-error.log*
 .env.*.local
 
 # Updater signing key (NEVER commit!)
-apps/desktop-app/src-tauri/private_key.pem
+src-tauri/private_key.pem

@@ -1,0 +1,47 @@
+{
+  "name": "@cododoro/desktop-app",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css,html,json}\" index.html",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,html,json}\" index.html",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:build:linux": "tauri build --target x86_64-unknown-linux-gnu",
+    "tauri:build:macos": "tauri build --target x86_64-apple-darwin",
+    "tauri:build:macos-arm64": "tauri build --target aarch64-apple-darwin",
+    "tauri:build:macos-universal": "tauri build --target universal-apple-darwin",
+    "tauri:build:windows": "tauri build --target x86_64-pc-windows-msvc",
+    "version:next": "node scripts/next-version.mjs",
+    "version:set": "node scripts/set-version.mjs",
+    "release:local": "scripts/local-release.sh"
+  },
+  "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
+    "@tauri-apps/api": "^2.1.1",
+    "@tauri-apps/plugin-notification": "^2.0.1",
+    "@tauri-apps/plugin-opener": "^2.2.6",
+    "@tauri-apps/plugin-process": "^2.0.0",
+    "@tauri-apps/plugin-updater": "^2.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}

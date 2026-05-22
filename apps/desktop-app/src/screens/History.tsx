@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import { Icon } from "../lib/icons";
 import { ContribGrid } from "../components/shared";
 import { AppSnapshot, DayPoint } from "../lib/types";
@@ -11,6 +12,7 @@ interface Props {
 
 export function CalendarScreen({ snapshot, days }: Props) {
   const { streak, longestStreak, longestRange, yearTotal, bestDay } = snapshot;
+  const heatmapRef = useRef<HTMLDivElement>(null);
 
   // Pad the heatmap one month past today so the upcoming month is visible.
   // Those days have no contributions yet, so they render as empty (level 0) cells.
@@ -47,6 +49,16 @@ export function CalendarScreen({ snapshot, days }: Props) {
       }
     : null;
 
+  // Pin the heatmap to its right edge on mount so the most recent months
+  // (including the one-month-ahead padding) are visible without scrolling.
+  // useLayoutEffect + direct scrollLeft assignment lands the scroll before
+  // paint, so the user never sees a left-aligned flash first.
+  useLayoutEffect(() => {
+    const el = heatmapRef.current;
+    if (!el) return;
+    el.scrollLeft = el.scrollWidth - el.clientWidth;
+  }, []);
+
   return (
     <div className="screen">
       <div style={{ padding: "16px 20px 4px" }}>
@@ -57,7 +69,7 @@ export function CalendarScreen({ snapshot, days }: Props) {
       </div>
 
       <div style={{ padding: "20px 20px 8px" }}>
-        <div style={{ overflowX: "auto" }} className="hscroll-x">
+        <div ref={heatmapRef} style={{ overflowX: "auto" }} className="hscroll-x">
           <div
             style={{
               display: "flex",

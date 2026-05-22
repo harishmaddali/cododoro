@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { Icon } from "../lib/icons";
 import { ProgressRing, SectionHeader } from "../components/shared";
 import { openExternal } from "../lib/api";
@@ -229,19 +229,7 @@ function RepoProgressRow({ repo, onClick }: { repo: RepoEntry; onClick: () => vo
         borderRadius: 14,
       }}
     >
-      <div
-        style={{
-          width: 32,
-          height: 32,
-          borderRadius: 8,
-          background: repo.color + "1a",
-          border: "1px solid " + repo.color + "33",
-          display: "grid",
-          placeItems: "center",
-        }}
-      >
-        <div style={{ width: 8, height: 8, borderRadius: 2, background: repo.color }} />
-      </div>
+      <OwnerAvatar owner={repo.owner} color={repo.color} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
@@ -285,6 +273,44 @@ function RepoProgressRow({ repo, onClick }: { repo: RepoEntry; onClick: () => vo
         </div>
       </div>
     </button>
+  );
+}
+
+// Owner's GitHub avatar — github.com/{owner}.png needs no API token; falls back to the color tile.
+function OwnerAvatar({ owner, color }: { owner: string; color: string }) {
+  const [failed, setFailed] = useState(false);
+
+  if (!owner || failed) {
+    return (
+      <div
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 8,
+          background: color + "1a",
+          border: "1px solid " + color + "33",
+          display: "grid",
+          placeItems: "center",
+        }}
+      >
+        <div style={{ width: 8, height: 8, borderRadius: 2, background: color }} />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={`https://github.com/${owner}.png?size=64`}
+      alt=""
+      width={32}
+      height={32}
+      onError={() => setFailed(true)}
+      style={{
+        borderRadius: 8,
+        objectFit: "cover",
+        border: "1px solid var(--line)",
+      }}
+    />
   );
 }
 

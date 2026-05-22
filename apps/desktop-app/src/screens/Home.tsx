@@ -113,9 +113,9 @@ export function Home({
           accent={
             status === "danger"
               ? "var(--danger)"
-              : status === "in-progress"
-                ? "var(--warn)"
-                : "var(--grass-4)"
+              : status === "on-fire"
+                ? "var(--grass-4)"
+                : "var(--fg-3)"
           }
         >
           <div>
@@ -128,9 +128,9 @@ export function Home({
                 color:
                   status === "danger"
                     ? "var(--danger)"
-                    : status === "in-progress"
-                      ? "var(--fg-0)"
-                      : "var(--grass-4)",
+                    : status === "on-fire"
+                      ? "var(--grass-4)"
+                      : "var(--fg-0)",
               }}
             >
               {todayCommits}
@@ -149,12 +149,15 @@ export function Home({
             </div>
           )}
           {status === "in-progress" && (
-            <div className="pill pill-warn">
+            <div className="pill">
               <Icon name="clock" size={12} /> {hours}h left to hit today's goal
             </div>
           )}
           {status === "danger" && (
-            <div className="pill pill-danger" style={{ animation: "pulse-glow 2s infinite" }}>
+            <div
+              className="pill pill-danger"
+              style={{ animation: "pulse-glow-danger 2s infinite" }}
+            >
               <Icon name="flame" size={12} /> Streak ends in {hours}h
             </div>
           )}
@@ -174,7 +177,13 @@ export function Home({
           value={streak}
           suffix="days"
           icon="flame"
-          accent={status === "danger" ? "var(--danger)" : "var(--grass-4)"}
+          accent={
+            status === "danger"
+              ? "var(--danger)"
+              : status === "on-fire"
+                ? "var(--grass-4)"
+                : "var(--fg-2)"
+          }
           warning={status === "danger"}
         />
         <StatTile label="This week" value={weekTotal} suffix="commits" icon="commit" />

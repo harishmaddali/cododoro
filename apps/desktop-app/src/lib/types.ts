@@ -36,7 +36,6 @@ export interface Config {
   nudges: Nudges;
   reminderTime: string;
   pollIntervalMinutes: number;
-  accent: string;
   showMascot: boolean;
 }
 
@@ -55,7 +54,6 @@ export const defaultConfig: Config = {
   },
   reminderTime: "21:00",
   pollIntervalMinutes: 30,
-  accent: "#39d878",
   showMascot: true,
 };
 

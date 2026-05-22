@@ -24,27 +24,6 @@ import {
   toDayPoints,
 } from "./lib/types";
 
-function shade(hex: string, percent: number): string {
-  const h = hex.replace("#", "");
-  let r = parseInt(h.slice(0, 2), 16);
-  let g = parseInt(h.slice(2, 4), 16);
-  let b = parseInt(h.slice(4, 6), 16);
-  const t = percent < 0 ? 0 : 255;
-  const p = Math.abs(percent) / 100;
-  r = Math.round((t - r) * p + r);
-  g = Math.round((t - g) * p + g);
-  b = Math.round((t - b) * p + b);
-  return "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("");
-}
-
-function hexToRgba(hex: string, a: number): string {
-  const h = hex.replace("#", "");
-  return `rgba(${parseInt(h.slice(0, 2), 16)}, ${parseInt(
-    h.slice(2, 4),
-    16,
-  )}, ${parseInt(h.slice(4, 6), 16)}, ${a})`;
-}
-
 export default function App() {
   const [stage, setStage] = useState<Stage>("loading");
   const [tab, setTab] = useState<Tab>("home");
@@ -59,17 +38,6 @@ export default function App() {
   const saveTimer = useRef<number | null>(null);
   const refreshTimer = useRef<number | null>(null);
   const dataSig = useRef<string>("");
-
-  // Apply accent across the heatmap palette (mirrors the design's behaviour).
-  useEffect(() => {
-    const a = config.accent || "#39d878";
-    const root = document.documentElement.style;
-    root.setProperty("--grass-4", a);
-    root.setProperty("--grass-glow", hexToRgba(a, 0.45));
-    root.setProperty("--grass-3", shade(a, -28));
-    root.setProperty("--grass-2", shade(a, -55));
-    root.setProperty("--grass-1", shade(a, -75));
-  }, [config.accent]);
 
   const doRefresh = useCallback(async () => {
     if (refreshInFlight.current) return refreshInFlight.current;

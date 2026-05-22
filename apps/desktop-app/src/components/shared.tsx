@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { MouseEvent, ReactNode } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Icon, IconName } from "../lib/icons";
-import { DayPoint, Tab } from "../lib/types";
+import { AppSnapshot, DayPoint, Tab } from "../lib/types";
 
 const MONTH_ABBR = [
   "Jan",
@@ -332,7 +332,66 @@ export function SectionHeader({
   );
 }
 
-export function TabBar({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
+// Profile tab glyph with avatar → initial → person-icon fallback. The active
+// ring is a box-shadow (not a border) so toggling it never shifts the label.
+function ProfileTabAvatar({ snapshot, active }: { snapshot: AppSnapshot | null; active: boolean }) {
+  const [failed, setFailed] = useState(false);
+  const size = 22;
+  const ring = active ? "0 0 0 1.5px var(--grass-4)" : undefined;
+
+  if (snapshot?.avatarUrl && !failed) {
+    return (
+      <img
+        src={snapshot.avatarUrl}
+        alt=""
+        width={size}
+        height={size}
+        onError={() => setFailed(true)}
+        style={{
+          borderRadius: "50%",
+          objectFit: "cover",
+          display: "block",
+          boxShadow: ring,
+        }}
+      />
+    );
+  }
+
+  const initial = (snapshot?.name || snapshot?.login || "").trim().charAt(0).toUpperCase();
+  if (initial) {
+    return (
+      <div
+        style={{
+          width: size,
+          height: size,
+          borderRadius: "50%",
+          background: "var(--bg-3)",
+          display: "grid",
+          placeItems: "center",
+          fontSize: 11,
+          fontWeight: 600,
+          lineHeight: 1,
+          fontFamily: "var(--font-mono)",
+          boxShadow: ring,
+        }}
+      >
+        {initial}
+      </div>
+    );
+  }
+
+  return <Icon name="user" size={size} stroke={active ? 2 : 1.6} />;
+}
+
+export function TabBar({
+  tab,
+  onTab,
+  snapshot,
+}: {
+  tab: Tab;
+  onTab: (t: Tab) => void;
+  snapshot: AppSnapshot | null;
+}) {
   const tabs: { id: Tab; label: string; icon: IconName }[] = [
     { id: "home", label: "Today", icon: "home" },
     { id: "repos", label: "Repos", icon: "repo" },
@@ -341,17 +400,24 @@ export function TabBar({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
   ];
   return (
     <nav className="tabbar">
-      {tabs.map((t) => (
-        <button
-          key={t.id}
-          className={tab === t.id ? "active" : ""}
-          onClick={() => onTab(t.id)}
-          aria-label={t.label}
-        >
-          <Icon name={t.icon} size={22} stroke={tab === t.id ? 2 : 1.6} />
-          <span>{t.label}</span>
-        </button>
-      ))}
+      {tabs.map((t) => {
+        const active = tab === t.id;
+        return (
+          <button
+            key={t.id}
+            className={active ? "active" : ""}
+            onClick={() => onTab(t.id)}
+            aria-label={t.label}
+          >
+            {t.id === "profile" ? (
+              <ProfileTabAvatar snapshot={snapshot} active={active} />
+            ) : (
+              <Icon name={t.icon} size={22} stroke={active ? 2 : 1.6} />
+            )}
+            <span>{t.label}</span>
+          </button>
+        );
+      })}
     </nav>
   );
 }

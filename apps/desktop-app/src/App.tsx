@@ -306,7 +306,7 @@ export default function App() {
         </div>
       )}
       <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>{body}</div>
-      {showTabs && <TabBar tab={tab} onTab={setTab} />}
+      {showTabs && <TabBar tab={tab} onTab={setTab} snapshot={snapshot} />}
     </div>
   );
 }

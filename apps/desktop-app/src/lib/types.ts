@@ -127,14 +127,22 @@ export function toDayPoints(days: DayCount[]): DayPoint[] {
 
 export type Status = "on-fire" | "in-progress" | "danger";
 
+/**
+ * Milliseconds remaining until the end of the user's local calendar day — the
+ * same midnight boundary that powers streaks and "today" filters. Reuse this
+ * rather than defining a parallel day boundary.
+ */
+export function msLeftToday(now: Date = new Date()): number {
+  const endOfDay = new Date(now);
+  endOfDay.setHours(24, 0, 0, 0);
+  return Math.max(0, endOfDay.getTime() - now.getTime());
+}
+
 export function deriveStatus(snapshot: AppSnapshot): Status {
   if (snapshot.todayCount >= snapshot.dailyGoal && snapshot.dailyGoal > 0) {
     return "on-fire";
   }
-  const now = new Date();
-  const endOfDay = new Date(now);
-  endOfDay.setHours(24, 0, 0, 0);
-  const hoursLeft = (endOfDay.getTime() - now.getTime()) / (1000 * 60 * 60);
+  const hoursLeft = msLeftToday() / (1000 * 60 * 60);
   if (hoursLeft < 4 && snapshot.streak > 0) {
     return "danger";
   }

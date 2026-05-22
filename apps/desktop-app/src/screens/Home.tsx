@@ -1,8 +1,8 @@
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Icon } from "../lib/icons";
 import { ProgressRing, SectionHeader } from "../components/shared";
 import { openExternal } from "../lib/api";
-import { AppSnapshot, CommitDetail, deriveStatus, RepoEntry } from "../lib/types";
+import { AppSnapshot, CommitDetail, deriveStatus, msLeftToday, RepoEntry } from "../lib/types";
 
 interface Props {
   snapshot: AppSnapshot;
@@ -19,6 +19,13 @@ export function Home({
   onOpenRepo,
   onOpenCommits,
 }: Props) {
+  // Re-render once a minute so the time-left countdown below stays accurate.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
   const status = deriveStatus(snapshot);
   const todayCommits = snapshot.todayCount;
   const dailyGoal = snapshot.dailyGoal;
@@ -33,7 +40,16 @@ export function Home({
   const ringLabel = `${todayCommits}/${dailyGoal}`;
   const ringFontSize = Math.min(54, (ringInner - ringRadius * 0.26) / (ringLabel.length * 0.6));
   const ringScale = ringFontSize / 54;
-  const hours = Math.max(1, 24 - new Date().getHours());
+  const remainingMs = msLeftToday(now);
+  const hoursLeft = Math.floor(remainingMs / 3_600_000);
+  const minutesLeft = Math.floor((remainingMs % 3_600_000) / 60_000);
+  const timeLeft =
+    hoursLeft > 0 && minutesLeft > 0
+      ? `${hoursLeft}h ${minutesLeft}m`
+      : hoursLeft > 0
+        ? `${hoursLeft}h`
+        : `${minutesLeft}m`;
+  const streakHoursLeft = Math.max(1, Math.ceil(remainingMs / 3_600_000));
   const todaysRepos = snapshot.repos.filter((r) => r.today > 0);
   const greeting = snapshot.name?.split(" ")[0] || snapshot.login;
   const today = new Date().toLocaleDateString(undefined, {
@@ -125,7 +141,7 @@ export function Home({
           )}
           {status === "in-progress" && (
             <div className="pill">
-              <Icon name="clock" size={12} /> {hours}h left to hit today's goal
+              <Icon name="clock" size={12} /> {timeLeft} left to hit today's goal
             </div>
           )}
           {status === "danger" && (
@@ -143,7 +159,7 @@ export function Home({
               >
                 <path d="M12 3c1 3 4 4 4 8a4 4 0 1 1-8 0c0-2 1-3 1-5 2 1 2 3 3-3z" />
               </svg>{" "}
-              Streak ends in {hours}h
+              Streak ends in {streakHoursLeft}h
             </div>
           )}
         </div>

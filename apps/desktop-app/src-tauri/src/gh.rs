@@ -265,7 +265,6 @@ async fn fetch_today(
     }
 
     commits.sort_by(|a, b| b.authored_at.cmp(&a.authored_at));
-    commits.truncate(8);
     Ok((count, by_repo, commits))
 }
 

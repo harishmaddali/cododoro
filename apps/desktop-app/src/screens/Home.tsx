@@ -171,9 +171,16 @@ export function Home({
               className="pill pill-danger"
               style={{ animation: "pulse-glow-danger 2s infinite" }}
             >
-              <span style={{ display: "flex", color: "#ffe5e5" }}>
-                <Icon name="flame" size={12} />
-              </span>{" "}
+              {/* Filled, enlarged flame — the shared stroke-only Icon renders as a faint hairline here. */}
+              <svg
+                width={12}
+                height={14}
+                viewBox="6 2 12 14"
+                fill="#FFD66B"
+                style={{ display: "block", flexShrink: 0 }}
+              >
+                <path d="M12 3c1 3 4 4 4 8a4 4 0 1 1-8 0c0-2 1-3 1-5 2 1 2 3 3-3z" />
+              </svg>{" "}
               Streak ends in {hours}h
             </div>
           )}

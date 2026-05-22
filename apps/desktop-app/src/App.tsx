@@ -260,7 +260,6 @@ export default function App() {
             refreshing={refreshing}
             onRefresh={() => doRefresh()}
             onOpenRepo={(id) => setOverlay({ type: "repo", id })}
-            onOpenNudges={() => setOverlay({ type: "nudges" })}
             onOpenCalendar={() => setTab("calendar")}
             onOpenCommits={() => setOverlay({ type: "commits" })}
           />

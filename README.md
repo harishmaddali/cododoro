@@ -22,7 +22,7 @@ cododoro/
 
 ## Features
 
-- Onboarding flow that captures a daily commit goal, repo filters, and accent color.
+- Onboarding flow that captures a daily commit goal and repo filters.
 - Home screen with the current day's progress, streak, and a refresh button.
 - Contribution heatmap with per-day tooltips, driven by a configurable streak window.
 - Per-repo drill-down view with its own activity slice.

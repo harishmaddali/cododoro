@@ -3,7 +3,6 @@ import { ScreenHeader } from "../components/ScreenHeader";
 import { Config } from "../lib/types";
 
 const ALL_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const ACCENTS = ["#39d878", "#3b82f6", "#a855f7", "#f5a524", "#ef4a4a"];
 
 interface Props {
   config: Config;
@@ -134,30 +133,6 @@ export function GoalsScreen({ config, onConfigChange, onBack }: Props) {
           Appearance
         </div>
         <div className="card">
-          <div className="t-small" style={{ marginBottom: 12 }}>
-            Accent
-          </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            {ACCENTS.map((c) => {
-              const on = config.accent.toLowerCase() === c.toLowerCase();
-              return (
-                <button
-                  key={c}
-                  onClick={() => set({ accent: c })}
-                  aria-label={c}
-                  style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 999,
-                    background: c,
-                    border: on ? "2px solid #fff" : "2px solid rgba(255,255,255,0.08)",
-                    boxShadow: on ? `0 0 12px ${c}` : "none",
-                  }}
-                />
-              );
-            })}
-          </div>
-          <div style={{ height: 14 }} />
           <ToggleRow
             title="Show mascot"
             sub="A little buddy that reacts to your progress"

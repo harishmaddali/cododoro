@@ -145,7 +145,6 @@ pub struct Config {
     pub nudges: Nudges,
     pub reminder_time: String,
     pub poll_interval_minutes: u32,
-    pub show_mascot: bool,
 }
 
 impl Default for Config {
@@ -162,7 +161,6 @@ impl Default for Config {
             nudges: Nudges::default(),
             reminder_time: "21:00".to_string(),
             poll_interval_minutes: 30,
-            show_mascot: true,
         }
     }
 }

@@ -256,7 +256,6 @@ export default function App() {
           <Home
             snapshot={snapshot}
             days={days}
-            config={config}
             refreshing={refreshing}
             onRefresh={() => doRefresh()}
             onOpenRepo={(id) => setOverlay({ type: "repo", id })}

@@ -11,7 +11,6 @@ interface Props {
   refreshing: boolean;
   onRefresh: () => void;
   onOpenRepo: (id: string) => void;
-  onOpenNudges: () => void;
   onOpenCalendar: () => void;
   onOpenCommits: () => void;
 }
@@ -23,7 +22,6 @@ export function Home({
   refreshing,
   onRefresh,
   onOpenRepo,
-  onOpenNudges,
   onOpenCalendar,
   onOpenCommits,
 }: Props) {
@@ -85,34 +83,6 @@ export function Home({
             <span className={refreshing ? "spin" : ""} style={{ display: "grid" }}>
               <Icon name="refresh" size={17} />
             </span>
-          </button>
-          <button
-            onClick={onOpenNudges}
-            aria-label="Nudges"
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 999,
-              background: "var(--bg-2)",
-              border: "1px solid var(--line)",
-              display: "grid",
-              placeItems: "center",
-              position: "relative",
-            }}
-          >
-            <Icon name="bell" size={18} />
-            <div
-              style={{
-                position: "absolute",
-                top: 9,
-                right: 11,
-                width: 7,
-                height: 7,
-                borderRadius: 999,
-                background: "var(--grass-4)",
-                boxShadow: "0 0 6px var(--grass-glow)",
-              }}
-            />
           </button>
         </div>
       </div>

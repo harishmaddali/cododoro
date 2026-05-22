@@ -2,11 +2,10 @@ import { Fragment } from "react";
 import { Icon } from "../lib/icons";
 import { ProgressRing, SectionHeader } from "../components/shared";
 import { openExternal } from "../lib/api";
-import { AppSnapshot, CommitDetail, Config, deriveStatus, RepoEntry } from "../lib/types";
+import { AppSnapshot, CommitDetail, deriveStatus, RepoEntry } from "../lib/types";
 
 interface Props {
   snapshot: AppSnapshot;
-  config: Config;
   refreshing: boolean;
   onRefresh: () => void;
   onOpenRepo: (id: string) => void;
@@ -15,7 +14,6 @@ interface Props {
 
 export function Home({
   snapshot,
-  config,
   refreshing,
   onRefresh,
   onOpenRepo,
@@ -165,8 +163,6 @@ export function Home({
           />
         ))}
       </div>
-
-      {config.showMascot && <Mascot status={status} />}
 
       <div style={{ height: 24 }} />
       <SectionHeader title="Recent commits" />
@@ -352,43 +348,5 @@ export function CommitRow({ commit }: { commit: CommitDetail }) {
         </div>
       </div>
     </button>
-  );
-}
-
-function Mascot({ status }: { status: ReturnType<typeof deriveStatus> }) {
-  if (status === "danger") return null;
-  const mood = status === "on-fire" ? "happy" : "neutral";
-  const eyes = mood === "happy" ? ["^", "^"] : ["•", "•"];
-  const mouth = mood === "happy" ? "ᴗ" : "_";
-  const face = `(${eyes[0]}${mouth}${eyes[1]})`;
-  const msg = mood === "happy" ? "You're crushing it today." : "Halfway there — one more push?";
-  return (
-    <div style={{ padding: "8px 20px 0" }}>
-      <div
-        className="card"
-        style={{ display: "flex", alignItems: "center", gap: 14, background: "var(--bg-1)" }}
-      >
-        <div
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: 12,
-            background: mood === "happy" ? "rgba(57,216,120,0.1)" : "var(--bg-3)",
-            color: mood === "happy" ? "var(--grass-4)" : "var(--fg-1)",
-            display: "grid",
-            placeItems: "center",
-            fontFamily: "var(--font-mono)",
-            fontSize: 16,
-            fontWeight: 500,
-            letterSpacing: "-0.05em",
-            whiteSpace: "pre",
-            flexShrink: 0,
-          }}
-        >
-          {face}
-        </div>
-        <div style={{ fontSize: 13, color: "var(--fg-1)", lineHeight: 1.4 }}>{msg}</div>
-      </div>
-    </div>
   );
 }

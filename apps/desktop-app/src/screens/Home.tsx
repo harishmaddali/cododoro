@@ -571,7 +571,8 @@ export function CommitRow({ commit }: { commit: CommitDetail }) {
 function Mascot({ status }: { status: ReturnType<typeof deriveStatus> }) {
   const mood = status === "on-fire" ? "happy" : status === "in-progress" ? "neutral" : "sad";
   const eyes = mood === "happy" ? ["^", "^"] : mood === "neutral" ? ["•", "•"] : ["x", "x"];
-  const mouth = mood === "happy" ? "ᴗ" : mood === "neutral" ? "_" : "︵";
+  const mouth = mood === "happy" ? "ᴗ" : "_";
+  const face = `(${eyes[0]}${mouth}${eyes[1]})`;
   const msg =
     mood === "happy"
       ? "You're crushing it today."
@@ -607,12 +608,11 @@ function Mascot({ status }: { status: ReturnType<typeof deriveStatus> }) {
             fontSize: 16,
             fontWeight: 500,
             letterSpacing: "-0.05em",
+            whiteSpace: "pre",
             flexShrink: 0,
           }}
         >
-          ({eyes[0]}
-          {mouth}
-          {eyes[1]})
+          {face}
         </div>
         <div style={{ fontSize: 13, color: "var(--fg-1)", lineHeight: 1.4 }}>{msg}</div>
       </div>

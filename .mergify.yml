@@ -1,6 +1,6 @@
 queue_rules:
   - name: Default merge queue
-    merge_method: squash
+    merge_method: merge
     merge_bot_account: harishmaddali
 merge_queue:
   max_parallel_checks: 10

@@ -560,16 +560,12 @@ export function CommitRow({ commit }: { commit: CommitDetail }) {
 }
 
 function Mascot({ status }: { status: ReturnType<typeof deriveStatus> }) {
-  const mood = status === "on-fire" ? "happy" : status === "in-progress" ? "neutral" : "sad";
-  const eyes = mood === "happy" ? ["^", "^"] : mood === "neutral" ? ["•", "•"] : ["x", "x"];
+  if (status === "danger") return null;
+  const mood = status === "on-fire" ? "happy" : "neutral";
+  const eyes = mood === "happy" ? ["^", "^"] : ["•", "•"];
   const mouth = mood === "happy" ? "ᴗ" : "_";
   const face = `(${eyes[0]}${mouth}${eyes[1]})`;
-  const msg =
-    mood === "happy"
-      ? "You're crushing it today."
-      : mood === "neutral"
-        ? "Halfway there — one more push?"
-        : "I don't want to see you lose the streak.";
+  const msg = mood === "happy" ? "You're crushing it today." : "Halfway there — one more push?";
   return (
     <div style={{ padding: "8px 20px 0" }}>
       <div
@@ -581,18 +577,8 @@ function Mascot({ status }: { status: ReturnType<typeof deriveStatus> }) {
             width: 48,
             height: 48,
             borderRadius: 12,
-            background:
-              mood === "happy"
-                ? "rgba(57,216,120,0.1)"
-                : mood === "neutral"
-                  ? "var(--bg-3)"
-                  : "rgba(239,74,74,0.08)",
-            color:
-              mood === "happy"
-                ? "var(--grass-4)"
-                : mood === "neutral"
-                  ? "var(--fg-1)"
-                  : "var(--danger)",
+            background: mood === "happy" ? "rgba(57,216,120,0.1)" : "var(--bg-3)",
+            color: mood === "happy" ? "var(--grass-4)" : "var(--fg-1)",
             display: "grid",
             placeItems: "center",
             fontFamily: "var(--font-mono)",

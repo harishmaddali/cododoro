@@ -569,3 +569,143 @@ export function Stepper({
     </div>
   );
 }
+
+export function StatTile({
+  label,
+  value,
+  suffix,
+  icon,
+  accent = "var(--fg-0)",
+  warning,
+}: {
+  label: string;
+  value: number;
+  suffix: string;
+  icon: IconName;
+  accent?: string;
+  warning?: boolean;
+}) {
+  return (
+    <div className="card" style={{ padding: 12, position: "relative", overflow: "hidden" }}>
+      {warning && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "radial-gradient(circle at top right, var(--danger-soft), transparent 70%)",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          color: "var(--fg-2)",
+          marginBottom: 8,
+        }}
+      >
+        <Icon name={icon} size={12} />
+        <span
+          className="t-small"
+          style={{
+            fontSize: 10.5,
+            letterSpacing: "0.05em",
+            textTransform: "uppercase",
+            fontWeight: 600,
+          }}
+        >
+          {label}
+        </span>
+      </div>
+      <div
+        className="t-mono"
+        style={{ fontSize: 24, fontWeight: 500, lineHeight: 1, color: accent }}
+      >
+        {value}
+      </div>
+      <div className="t-small" style={{ marginTop: 4, fontSize: 11 }}>
+        {suffix}
+      </div>
+    </div>
+  );
+}
+
+export function SevenDayChart({ days, goal }: { days: DayPoint[]; goal: number }) {
+  const max = Math.max(goal + 1, ...days.map((d) => d.count), 1);
+  const labels = days.map((d) =>
+    d.date.toLocaleDateString(undefined, { weekday: "short" }).slice(0, 2),
+  );
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 90 }}>
+      {days.map((d, i) => {
+        const h = (d.count / max) * 100;
+        const hitGoal = d.count >= goal && goal > 0;
+        const isToday = i === days.length - 1;
+        return (
+          <div
+            key={i}
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 6,
+              height: "100%",
+            }}
+          >
+            <div
+              style={{
+                flex: 1,
+                width: "100%",
+                display: "flex",
+                alignItems: "flex-end",
+                position: "relative",
+              }}
+            >
+              {i === 0 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    bottom: `${(goal / max) * 100}%`,
+                    height: 1,
+                    background:
+                      "repeating-linear-gradient(to right, var(--line-2) 0, var(--line-2) 4px, transparent 4px, transparent 8px)",
+                    width: "100%",
+                    zIndex: 0,
+                  }}
+                />
+              )}
+              <div
+                style={{
+                  width: "100%",
+                  height: `${Math.max(h, 4)}%`,
+                  background:
+                    d.count === 0 ? "var(--bg-3)" : hitGoal ? "var(--grass-4)" : "var(--grass-2)",
+                  borderRadius: 4,
+                  boxShadow: isToday && hitGoal ? "0 0 12px var(--grass-glow)" : "none",
+                  border: isToday
+                    ? "1px solid " + (hitGoal ? "var(--grass-4)" : "var(--warn)")
+                    : "none",
+                }}
+              />
+            </div>
+            <div
+              className="t-mono"
+              style={{
+                fontSize: 10,
+                color: isToday ? "var(--fg-0)" : "var(--fg-3)",
+                fontWeight: isToday ? 600 : 400,
+              }}
+            >
+              {labels[i]}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

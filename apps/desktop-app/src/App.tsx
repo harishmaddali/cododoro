@@ -11,6 +11,7 @@ import { ProfileScreen } from "./screens/Profile";
 import { RepoDetail } from "./screens/RepoDetail";
 import { GoalsScreen } from "./screens/Goals";
 import { NudgesScreen } from "./screens/Nudges";
+import { CommitsScreen } from "./screens/Commits";
 import { authStatus, getConfig, loadSnapshot, refresh as apiRefresh, saveConfig } from "./lib/api";
 import { checkForUpdates } from "./lib/updater";
 import {
@@ -246,6 +247,8 @@ export default function App() {
     body = (
       <NudgesScreen config={config} onConfigChange={applyConfig} onBack={() => setOverlay(null)} />
     );
+  } else if (overlay?.type === "commits") {
+    body = <CommitsScreen snapshot={snapshot} onBack={() => setOverlay(null)} />;
   } else {
     body = (
       <>
@@ -259,6 +262,7 @@ export default function App() {
             onOpenRepo={(id) => setOverlay({ type: "repo", id })}
             onOpenNudges={() => setOverlay({ type: "nudges" })}
             onOpenCalendar={() => setTab("calendar")}
+            onOpenCommits={() => setOverlay({ type: "commits" })}
           />
         )}
         {tab === "repos" && (

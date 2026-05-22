@@ -13,6 +13,7 @@ interface Props {
   onOpenRepo: (id: string) => void;
   onOpenNudges: () => void;
   onOpenCalendar: () => void;
+  onOpenCommits: () => void;
 }
 
 export function Home({
@@ -24,6 +25,7 @@ export function Home({
   onOpenRepo,
   onOpenNudges,
   onOpenCalendar,
+  onOpenCommits,
 }: Props) {
   const status = deriveStatus(snapshot);
   const todayCommits = snapshot.todayCount;
@@ -248,13 +250,36 @@ export function Home({
               No qualifying commits yet today.
             </div>
           )}
-          {snapshot.recentCommits.map((c, i, a) => (
+          {snapshot.recentCommits.slice(0, 5).map((c, i, a) => (
             <Fragment key={c.sha}>
               <CommitRow commit={c} />
               {i < a.length - 1 && <div className="divider" style={{ marginLeft: 50 }} />}
             </Fragment>
           ))}
         </div>
+        {snapshot.recentCommits.length > 0 && (
+          <button
+            onClick={onOpenCommits}
+            style={{
+              marginTop: 10,
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              padding: "11px 0",
+              borderRadius: 12,
+              background: "var(--bg-2)",
+              border: "1px solid var(--line)",
+              color: "var(--fg-1)",
+              fontSize: 13,
+              fontWeight: 500,
+            }}
+          >
+            See all commits today
+            <Icon name="arrow-right" size={14} />
+          </button>
+        )}
       </div>
 
       <div style={{ height: 12 }} />
@@ -480,7 +505,7 @@ function RepoProgressRow({ repo, onClick }: { repo: RepoEntry; onClick: () => vo
   );
 }
 
-function CommitRow({ commit }: { commit: CommitDetail }) {
+export function CommitRow({ commit }: { commit: CommitDetail }) {
   const time = commit.authoredAt
     ? new Date(commit.authoredAt).toLocaleTimeString([], {
         hour: "2-digit",

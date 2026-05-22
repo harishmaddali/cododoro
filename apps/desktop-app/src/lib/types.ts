@@ -130,7 +130,11 @@ export function deriveStatus(snapshot: AppSnapshot): Status {
   if (snapshot.todayCount >= snapshot.dailyGoal && snapshot.dailyGoal > 0) {
     return "on-fire";
   }
-  if (snapshot.todayCount === 0 && snapshot.streak > 0) {
+  const now = new Date();
+  const endOfDay = new Date(now);
+  endOfDay.setHours(24, 0, 0, 0);
+  const hoursLeft = (endOfDay.getTime() - now.getTime()) / (1000 * 60 * 60);
+  if (hoursLeft < 4 && snapshot.streak > 0) {
     return "danger";
   }
   return "in-progress";

@@ -31,6 +31,17 @@ export function Home({
   const todayCommits = snapshot.todayCount;
   const dailyGoal = snapshot.dailyGoal;
   const streak = snapshot.streak;
+
+  // Goal-ring label sizing: the "value/goal" text is monospace (Geist Mono,
+  // ~0.6em per glyph). Shrink it for longer strings so it always keeps ~13% of
+  // the ring radius clear on each side and never crowds the ring stroke.
+  const ringSize = 196;
+  const ringStroke = 14;
+  const ringRadius = (ringSize - ringStroke) / 2;
+  const ringInner = ringSize - ringStroke * 2;
+  const ringLabel = `${todayCommits}/${dailyGoal}`;
+  const ringFontSize = Math.min(54, (ringInner - ringRadius * 0.26) / (ringLabel.length * 0.6));
+  const ringScale = ringFontSize / 54;
   const hours = Math.max(1, 24 - new Date().getHours());
   const todaysRepos = snapshot.repos.filter((r) => r.today > 0);
   const weekTotal = snapshot.repos.reduce((s, r) => s + r.week, 0);
@@ -110,8 +121,8 @@ export function Home({
         <ProgressRing
           value={todayCommits}
           goal={dailyGoal}
-          size={196}
-          stroke={14}
+          size={ringSize}
+          stroke={ringStroke}
           accent={
             status === "danger"
               ? "var(--danger)"
@@ -124,7 +135,7 @@ export function Home({
             <div
               className="t-mono"
               style={{
-                fontSize: 54,
+                fontSize: ringFontSize,
                 fontWeight: 500,
                 lineHeight: 1,
                 color:
@@ -138,7 +149,7 @@ export function Home({
               {todayCommits}
               <span style={{ color: "var(--fg-3)", fontWeight: 300 }}>/{dailyGoal}</span>
             </div>
-            <div className="t-small" style={{ marginTop: 8 }}>
+            <div className="t-small" style={{ marginTop: 8 * ringScale, fontSize: 12 * ringScale }}>
               commits today
             </div>
           </div>
@@ -160,7 +171,10 @@ export function Home({
               className="pill pill-danger"
               style={{ animation: "pulse-glow-danger 2s infinite" }}
             >
-              <Icon name="flame" size={12} /> Streak ends in {hours}h
+              <span style={{ display: "flex", color: "#ffe5e5" }}>
+                <Icon name="flame" size={12} />
+              </span>{" "}
+              Streak ends in {hours}h
             </div>
           )}
         </div>

@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function ReposScreen({ snapshot, days, onOpenRepo }: Props) {
-  const [filter, setFilter] = useState<"all" | "active">("all");
+  const [filter, setFilter] = useState<"all" | "active">("active");
   const repos = snapshot.repos;
   const shown = repos.filter((r) => (filter === "all" ? true : r.today > 0));
 
@@ -22,8 +22,8 @@ export function ReposScreen({ snapshot, days, onOpenRepo }: Props) {
 
       <div style={{ padding: "12px 20px 8px", display: "flex", gap: 8 }}>
         {[
-          { id: "all", label: "All" },
           { id: "active", label: "Active today" },
+          { id: "all", label: "All" },
         ].map((f) => (
           <button
             key={f.id}

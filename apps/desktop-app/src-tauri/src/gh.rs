@@ -378,27 +378,36 @@ fn split_repo(full: &str) -> (String, String) {
 }
 
 fn to_day_counts(weeks: &[Vec<(String, u32)>]) -> Vec<DayCount> {
+    // Scale the colour buckets to the busiest day of the year so the heatmap
+    // reflects the user's own activity distribution rather than fixed cutoffs.
+    let peak = weeks
+        .iter()
+        .flat_map(|week| week.iter())
+        .map(|(_, count)| *count)
+        .max()
+        .unwrap_or(0);
     let mut out = Vec::new();
     for week in weeks {
         for (date, count) in week {
             out.push(DayCount {
                 date: date.clone(),
                 count: *count,
-                level: level_for(*count),
+                level: level_for(*count, peak),
             });
         }
     }
     out
 }
 
-fn level_for(count: u32) -> u8 {
-    match count {
-        0 => 0,
-        1..=2 => 1,
-        3..=5 => 2,
-        6..=9 => 3,
-        _ => 4,
+/// Map a day's contribution count onto a 0–4 colour bucket. An empty day is
+/// always level 0; non-empty days are split into quartile bands of the year's
+/// peak day, so only genuinely busy days reach the brightest level.
+fn level_for(count: u32, peak: u32) -> u8 {
+    if count == 0 || peak == 0 {
+        return 0;
     }
+    let band = ((count as f64 / peak as f64) * 4.0).ceil() as u8;
+    band.clamp(1, 4)
 }
 
 fn weekday_name(date: &str) -> Option<&'static str> {
@@ -1107,5 +1116,40 @@ mod tests {
         let today = NaiveDate::from_ymd_opt(2026, 5, 18).unwrap();
         // today empty but in-progress → previous 3 days form the streak
         assert_eq!(current_streak(&days, &schedule, &today), 3);
+    }
+
+    #[test]
+    fn level_for_scales_to_yearly_peak() {
+        // Empty days are always level 0, regardless of the peak.
+        assert_eq!(level_for(0, 20), 0);
+        // A calendar with no activity collapses every day to level 0.
+        assert_eq!(level_for(0, 0), 0);
+        assert_eq!(level_for(1, 0), 0);
+        // Quartile bands of a 20-contribution peak: only the top quarter is max.
+        assert_eq!(level_for(1, 20), 1);
+        assert_eq!(level_for(5, 20), 1);
+        assert_eq!(level_for(6, 20), 2);
+        assert_eq!(level_for(10, 20), 2);
+        assert_eq!(level_for(11, 20), 3);
+        assert_eq!(level_for(15, 20), 3);
+        assert_eq!(level_for(16, 20), 4);
+        assert_eq!(level_for(20, 20), 4);
+        // A single quiet day on a busy calendar stays at the lowest non-zero band.
+        assert_eq!(level_for(1, 100), 1);
+    }
+
+    #[test]
+    fn to_day_counts_buckets_against_busiest_day() {
+        let weeks = vec![vec![
+            ("2026-01-01".to_string(), 0),
+            ("2026-01-02".to_string(), 2),
+            ("2026-01-03".to_string(), 8),
+        ]];
+        let days = to_day_counts(&weeks);
+        assert_eq!(days[0].level, 0);
+        // 2 of a peak of 8 sits in the bottom quartile.
+        assert_eq!(days[1].level, 1);
+        // The peak day itself is the brightest level.
+        assert_eq!(days[2].level, 4);
     }
 }

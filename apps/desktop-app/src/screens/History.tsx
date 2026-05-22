@@ -12,9 +12,24 @@ interface Props {
 export function CalendarScreen({ snapshot, days }: Props) {
   const { streak, longestStreak, longestRange, yearTotal, bestDay } = snapshot;
 
+  // Pad the heatmap one month past today so the upcoming month is visible.
+  // Those days have no contributions yet, so they render as empty (level 0) cells.
+  const heatmapDays: DayPoint[] = [...days];
+  if (days.length > 0) {
+    const windowEnd = new Date();
+    windowEnd.setHours(0, 0, 0, 0);
+    windowEnd.setMonth(windowEnd.getMonth() + 1);
+    const cursor = new Date(heatmapDays[heatmapDays.length - 1].date);
+    cursor.setDate(cursor.getDate() + 1);
+    while (cursor <= windowEnd) {
+      heatmapDays.push({ date: new Date(cursor), count: 0, level: 0 });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+
   const monthsTrack: { label: string; idx: number }[] = [];
   let lastMonth = -1;
-  days.forEach((d, i) => {
+  heatmapDays.forEach((d, i) => {
     if (d.date.getDate() <= 7 && d.date.getMonth() !== lastMonth) {
       monthsTrack.push({ label: MONTHS[d.date.getMonth()], idx: Math.floor(i / 7) });
       lastMonth = d.date.getMonth();
@@ -41,8 +56,8 @@ export function CalendarScreen({ snapshot, days }: Props) {
         </div>
       </div>
 
-      <div style={{ padding: "20px 0 8px" }}>
-        <div style={{ overflowX: "auto", padding: "0 20px" }} className="hscroll-x">
+      <div style={{ padding: "20px 20px 8px" }}>
+        <div style={{ overflowX: "auto" }} className="hscroll-x">
           <div
             style={{
               display: "flex",
@@ -68,12 +83,12 @@ export function CalendarScreen({ snapshot, days }: Props) {
                 </div>
               ))}
             </div>
-            <ContribGrid days={days} cellSize={12} gap={2} />
+            <ContribGrid days={heatmapDays} cellSize={12} gap={2} />
           </div>
         </div>
         <div
           style={{
-            padding: "12px 20px 0",
+            padding: "12px 0 0",
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-end",

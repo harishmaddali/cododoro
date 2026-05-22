@@ -4,17 +4,42 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Icon, IconName } from "../lib/icons";
 import { DayPoint, Tab } from "../lib/types";
 
-const tooltipDateFmt = new Intl.DateTimeFormat(undefined, {
-  weekday: "long",
-  month: "long",
-  day: "numeric",
-  year: "numeric",
-});
+const MONTH_ABBR = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sept",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+function ordinalSuffix(day: number) {
+  // 11th–13th always take "th" regardless of their last digit.
+  if (day % 100 >= 11 && day % 100 <= 13) return "th";
+  switch (day % 10) {
+    case 1:
+      return "st";
+    case 2:
+      return "nd";
+    case 3:
+      return "rd";
+    default:
+      return "th";
+  }
+}
 
 function formatCellTooltip(count: number, date: Date) {
   const noun = count === 1 ? "contribution" : "contributions";
   const label = count === 0 ? "No contributions" : `${count} ${noun}`;
-  return `${label} on ${tooltipDateFmt.format(date)}`;
+  const day = date.getDate();
+  const when = `${day}${ordinalSuffix(day)} ${MONTH_ABBR[date.getMonth()]}`;
+  return `${label} on ${when}`;
 }
 
 const isMac =

@@ -72,6 +72,17 @@ textarea {
   color: inherit;
 }
 
+/* Hide native number-input spinners — value is adjusted via the Stepper's +/x buttons */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* App shell — fills the window */
 .app {
   position: fixed;

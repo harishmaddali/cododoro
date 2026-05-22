@@ -483,7 +483,6 @@ export function Stepper({
           color: "var(--fg-0)",
           width: "100%",
           minWidth: 0,
-          MozAppearance: "textfield",
         }}
       />
       <button

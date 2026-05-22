@@ -255,11 +255,9 @@ export default function App() {
         {tab === "home" && (
           <Home
             snapshot={snapshot}
-            days={days}
             refreshing={refreshing}
             onRefresh={() => doRefresh()}
             onOpenRepo={(id) => setOverlay({ type: "repo", id })}
-            onOpenCalendar={() => setTab("calendar")}
             onOpenCommits={() => setOverlay({ type: "commits" })}
           />
         )}
@@ -274,9 +272,11 @@ export default function App() {
         {tab === "profile" && (
           <ProfileScreen
             snapshot={snapshot}
+            days={days}
             config={config}
             onOpenGoals={() => setOverlay({ type: "goals" })}
             onOpenNudges={() => setOverlay({ type: "nudges" })}
+            onOpenCalendar={() => setTab("calendar")}
             onReset={resetAccount}
           />
         )}

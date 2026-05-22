@@ -1,19 +1,33 @@
 import { useState } from "react";
 import { Icon, IconName } from "../lib/icons";
+import { SevenDayChart, StatTile } from "../components/shared";
 import { openExternal } from "../lib/api";
-import { AppSnapshot, Config } from "../lib/types";
+import { AppSnapshot, Config, DayPoint, deriveStatus } from "../lib/types";
 
 interface Props {
   snapshot: AppSnapshot;
+  days: DayPoint[];
   config: Config;
   onOpenGoals: () => void;
   onOpenNudges: () => void;
+  onOpenCalendar: () => void;
   onReset: () => void;
 }
 
-export function ProfileScreen({ snapshot, config, onOpenGoals, onOpenNudges, onReset }: Props) {
+export function ProfileScreen({
+  snapshot,
+  days,
+  config,
+  onOpenGoals,
+  onOpenNudges,
+  onOpenCalendar,
+  onReset,
+}: Props) {
   const repoCount = snapshot.repos.length;
   const activeFilters = Object.values(config.filters).filter(Boolean).length;
+  const status = deriveStatus(snapshot);
+  const weekTotal = snapshot.repos.reduce((s, r) => s + r.week, 0);
+  const activeCount = snapshot.repos.filter((r) => r.today > 0).length;
   const nudgeLabel = config.nudges.morning
     ? "Morning · 08:30"
     : config.nudges.midday
@@ -87,6 +101,62 @@ export function ProfileScreen({ snapshot, config, onOpenGoals, onOpenNudges, onR
           <ProfileStat value={snapshot.yearTotal} label="Year" />
           <ProfileStat value={snapshot.streak} label="Streak" accent="var(--grass-4)" />
           <ProfileStat value={repoCount} label="Repos" />
+        </div>
+
+        <div className="card" onClick={onOpenCalendar} style={{ cursor: "pointer", marginTop: 14 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+              marginBottom: 14,
+            }}
+          >
+            <div className="t-h3">Last 7 days</div>
+            <div
+              className="t-small"
+              style={{
+                color: "var(--fg-2)",
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+              }}
+            >
+              View all <Icon name="chevron-right" size={13} />
+            </div>
+          </div>
+          <SevenDayChart days={days.slice(-7)} goal={snapshot.dailyGoal} />
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr",
+            gap: 10,
+            marginTop: 10,
+          }}
+        >
+          <StatTile
+            label="Streak"
+            value={snapshot.streak}
+            suffix="days"
+            icon="flame"
+            accent={
+              status === "danger"
+                ? "var(--danger)"
+                : status === "on-fire"
+                  ? "var(--grass-4)"
+                  : "var(--fg-2)"
+            }
+            warning={status === "danger"}
+          />
+          <StatTile label="This week" value={weekTotal} suffix="commits" icon="commit" />
+          <StatTile
+            label="Active"
+            value={activeCount}
+            suffix={`of ${snapshot.repos.length}`}
+            icon="repo"
+          />
         </div>
 
         <div className="t-eyebrow" style={{ marginTop: 28, marginBottom: 10, padding: "0 4px" }}>

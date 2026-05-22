@@ -164,35 +164,19 @@ export function Home({
         </div>
       </div>
 
-      <div
-        style={{
-          padding: "24px 20px 12px",
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: 10,
-        }}
-      >
-        <StatTile
-          label="Streak"
-          value={streak}
-          suffix="days"
-          icon="flame"
-          accent={
-            status === "danger"
-              ? "var(--danger)"
-              : status === "on-fire"
-                ? "var(--grass-4)"
-                : "var(--fg-2)"
-          }
-          warning={status === "danger"}
-        />
-        <StatTile label="This week" value={weekTotal} suffix="commits" icon="commit" />
-        <StatTile
-          label="Active"
-          value={snapshot.repos.filter((r) => r.today > 0).length}
-          suffix={`of ${snapshot.repos.length}`}
-          icon="repo"
-        />
+      <div style={{ height: 24 }} />
+      <SectionHeader title="Today's repos" />
+      <div style={{ padding: "0 20px 0", display: "flex", flexDirection: "column", gap: 8 }}>
+        {todaysRepos.length === 0 && (
+          <div className="card t-small">No contributions yet today.</div>
+        )}
+        {todaysRepos.slice(0, 6).map((r) => (
+          <RepoProgressRow
+            key={r.nameWithOwner}
+            repo={r}
+            onClick={() => onOpenRepo(r.nameWithOwner)}
+          />
+        ))}
       </div>
 
       {config.showMascot && <Mascot status={status} />}
@@ -224,19 +208,35 @@ export function Home({
         </div>
       </div>
 
-      <div style={{ height: 24 }} />
-      <SectionHeader title="Today's repos" />
-      <div style={{ padding: "0 20px 0", display: "flex", flexDirection: "column", gap: 8 }}>
-        {todaysRepos.length === 0 && (
-          <div className="card t-small">No contributions yet today.</div>
-        )}
-        {todaysRepos.slice(0, 6).map((r) => (
-          <RepoProgressRow
-            key={r.nameWithOwner}
-            repo={r}
-            onClick={() => onOpenRepo(r.nameWithOwner)}
-          />
-        ))}
+      <div
+        style={{
+          padding: "24px 20px 12px",
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          gap: 10,
+        }}
+      >
+        <StatTile
+          label="Streak"
+          value={streak}
+          suffix="days"
+          icon="flame"
+          accent={
+            status === "danger"
+              ? "var(--danger)"
+              : status === "on-fire"
+                ? "var(--grass-4)"
+                : "var(--fg-2)"
+          }
+          warning={status === "danger"}
+        />
+        <StatTile label="This week" value={weekTotal} suffix="commits" icon="commit" />
+        <StatTile
+          label="Active"
+          value={snapshot.repos.filter((r) => r.today > 0).length}
+          suffix={`of ${snapshot.repos.length}`}
+          icon="repo"
+        />
       </div>
 
       <div style={{ height: 24 }} />

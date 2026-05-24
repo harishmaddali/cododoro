@@ -31,3 +31,4 @@ yarn-error.log*
 
 # Updater signing key (NEVER commit!)
 apps/desktop-app/src-tauri/private_key.pem
+apps/desktop-app/src-tauri/private_key.pem.pub

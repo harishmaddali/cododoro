@@ -3,8 +3,9 @@ import Base from "../layouts/Base.astro";
 import Logo from "../components/Logo.astro";
 import FeatureCard from "../components/FeatureCard.astro";
 import DownloadButton from "../components/DownloadButton.astro";
+import { getLatestDownloads, repoUrl, releasesUrl } from "../lib/github-releases";
 
-const repoUrl = "https://github.com/harishmaddali/cododoro";
+const downloads = await getLatestDownloads();
 const year = new Date().getFullYear();
 ---
 
@@ -112,21 +113,40 @@ const year = new Date().getFullYear();
         Pick your platform.
       </h2>
       <p class="text-center text-fg-1 mb-10 max-w-xl mx-auto">
-        Signed installers ship from
-        <a
-          href={`${repoUrl}/releases`}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-grass-4 hover:underline"
-        >
-          GitHub Releases
-        </a>
-        with built-in auto-update.
+        {
+          downloads.version ? (
+            <>
+              Latest release:{" "}
+              <a
+                href={releasesUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-grass-4 hover:underline"
+              >
+                v{downloads.version}
+              </a>
+              . Signed installers ship from GitHub Releases with built-in auto-update.
+            </>
+          ) : (
+            <>
+              Signed installers ship from{" "}
+              <a
+                href={`${repoUrl}/releases`}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-grass-4 hover:underline"
+              >
+                GitHub Releases
+              </a>{" "}
+              with built-in auto-update.
+            </>
+          )
+        }
       </p>
       <div class="flex flex-wrap gap-4 justify-center">
-        <DownloadButton platform="macOS" />
-        <DownloadButton platform="Windows" />
-        <DownloadButton platform="Linux" />
+        <DownloadButton platform="macOS" href={downloads.macOS} />
+        <DownloadButton platform="Windows" href={downloads.Windows} />
+        <DownloadButton platform="Linux" href={downloads.Linux} />
       </div>
     </section>
   </main>

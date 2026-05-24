@@ -19,6 +19,7 @@ if [ -f "src-tauri/private_key.pem" ]; then
         exit 0
     fi
     rm src-tauri/private_key.pem
+    rm -f src-tauri/private_key.pem.pub
 fi
 
 echo "Enter a secure password to protect the private key:"
@@ -27,11 +28,9 @@ read -s PASSWORD
 echo ""
 echo "Generating keypair..."
 
-export TAURI_SIGNING_PASSWORD="$PASSWORD"
-npx tauri signer generate -w ./src-tauri/private_key.pem
+npx tauri signer generate -w ./src-tauri/private_key.pem -p "$PASSWORD"
 
-# Extract public key
-PUBLIC_KEY=$(npx tauri signer extract-key -w ./src-tauri/private_key.pem)
+PUBLIC_KEY=$(cat ./src-tauri/private_key.pem.pub)
 
 echo ""
 echo "✅ Keypair generated successfully!"
@@ -40,6 +39,7 @@ echo "📝 Public Key (for tauri.conf.json):"
 echo "$PUBLIC_KEY"
 echo ""
 echo "💾 Private key saved to: src-tauri/private_key.pem"
+echo "💾 Public key saved to: src-tauri/private_key.pem.pub"
 echo ""
 echo "Next steps:"
 echo "1. Add the public key to src-tauri/tauri.conf.json updater.pubkey"

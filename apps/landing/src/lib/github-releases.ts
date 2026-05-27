@@ -20,11 +20,7 @@ type GitHubRelease = {
   assets: GitHubAsset[];
 };
 
-function pickAsset(
-  assets: GitHubAsset[],
-  ext: RegExp,
-  prefer?: RegExp,
-): GitHubAsset | undefined {
+function pickAsset(assets: GitHubAsset[], ext: RegExp, prefer?: RegExp): GitHubAsset | undefined {
   const matches = assets.filter((asset) => ext.test(asset.name));
   if (matches.length === 0) return undefined;
   if (prefer) {
@@ -58,20 +54,18 @@ export async function getLatestDownloads(): Promise<PlatformDownloads> {
   };
 
   try {
-    const res = await fetch(
-      `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
-      {
-        headers: {
-          Accept: "application/vnd.github+json",
-          "User-Agent": "cododoro-landing",
-        },
+    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        "User-Agent": "cododoro-landing",
       },
-    );
+    });
 
     if (!res.ok) return fallback;
 
     const release = (await res.json()) as GitHubRelease;
-    if (!release.assets?.length) return { ...fallback, version: release.tag_name.replace(/^v/i, "") };
+    if (!release.assets?.length)
+      return { ...fallback, version: release.tag_name.replace(/^v/i, "") };
 
     return pickDownloadsFromRelease(release);
   } catch {

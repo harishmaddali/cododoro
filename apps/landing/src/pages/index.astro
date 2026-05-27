@@ -47,7 +47,14 @@ const year = new Date().getFullYear();
           Pomodoro for shipping. Set a commit goal, ride the heatmap.
         </p>
         <div class="mt-12 flex items-center justify-center gap-3 flex-wrap">
-          <a href="#download" class="btn btn-primary">Get Cododoro</a>
+          <a
+            href="#download"
+            class="btn btn-primary"
+            data-cododoro-download="auto"
+            data-cododoro-hero
+          >
+            <span data-cododoro-status>Get Cododoro</span>
+          </a>
           <a href={repoUrl} target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
             View on GitHub
           </a>
@@ -151,6 +158,14 @@ const year = new Date().getFullYear();
     </section>
   </main>
 
+  <p
+    id="cododoro-mobile-note"
+    role="status"
+    class="hidden text-center text-fg-2 text-sm mt-2 mb-6 max-w-xl mx-auto px-4"
+  >
+    Cododoro is a desktop app. Available for macOS, Windows, and Linux.
+  </p>
+
   <footer class="border-t border-line mt-10">
     <div
       class="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4 text-[13px] text-fg-2"
@@ -167,3 +182,79 @@ const year = new Date().getFullYear();
     </div>
   </footer>
 </Base>
+
+<script>
+  import { detectPlatform, startDownload } from "../lib/download-client";
+  import type { Platform } from "../lib/github-releases";
+
+  type DownloadEl = HTMLAnchorElement | HTMLButtonElement;
+
+  const originalStatusText = new WeakMap<HTMLElement, string>();
+
+  function setBusy(el: DownloadEl, busy: boolean, loadingText: string) {
+    const status = el.querySelector<HTMLElement>("[data-cododoro-status]");
+    if (busy) {
+      el.setAttribute("aria-busy", "true");
+      el.classList.add("pointer-events-none", "opacity-80");
+      if (status) {
+        if (!originalStatusText.has(status)) {
+          originalStatusText.set(status, status.textContent ?? "");
+        }
+        status.textContent = loadingText;
+      }
+    } else {
+      el.removeAttribute("aria-busy");
+      el.classList.remove("pointer-events-none", "opacity-80");
+      if (status) {
+        const original = originalStatusText.get(status);
+        if (original !== undefined) status.textContent = original;
+      }
+    }
+  }
+
+  function showMobileNote() {
+    const note = document.getElementById("cododoro-mobile-note");
+    if (note) {
+      note.classList.remove("hidden");
+      note.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    document.getElementById("download")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function attach(el: DownloadEl) {
+    const preferredRaw = el.dataset.cododoroDownload ?? "auto";
+    const preferred = preferredRaw as Platform | "auto";
+    const loadingText = preferred === "auto" ? "Detecting…" : "Fetching latest…";
+
+    el.addEventListener("click", async (event) => {
+      if (el.getAttribute("aria-busy") === "true") {
+        event.preventDefault();
+        return;
+      }
+      event.preventDefault();
+      await startDownload(preferred, {
+        onStart: () => setBusy(el, true, loadingText),
+        onEnd: () => setBusy(el, false, loadingText),
+        onMobile: () => {
+          setBusy(el, false, loadingText);
+          showMobileNote();
+        },
+      });
+    });
+  }
+
+  document.querySelectorAll<DownloadEl>("[data-cododoro-download]").forEach(attach);
+
+  // Personalise the hero CTA label once we know which OS the visitor is on.
+  const heroLabel = document.querySelector<HTMLElement>(
+    "[data-cododoro-hero] [data-cododoro-status]",
+  );
+  if (heroLabel) {
+    const detected = detectPlatform();
+    if (detected === "macOS" || detected === "Windows" || detected === "Linux") {
+      const label = `Download for ${detected}`;
+      heroLabel.textContent = label;
+      originalStatusText.set(heroLabel, label);
+    }
+  }
+</script>

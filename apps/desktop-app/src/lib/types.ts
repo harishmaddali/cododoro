@@ -1,7 +1,8 @@
 export type Stage = "loading" | "welcome" | "auth" | "onboarding" | "app";
-export type Tab = "home" | "repos" | "calendar" | "profile";
+export type Tab = "home" | "calendar" | "profile";
 export type Overlay =
   | { type: "repo"; id: string }
+  | { type: "repos" }
   | { type: "goals" }
   | { type: "nudges" }
   | { type: "commits" }

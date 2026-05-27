@@ -11,6 +11,7 @@ interface Props {
   onOpenGoals: () => void;
   onOpenNudges: () => void;
   onOpenCalendar: () => void;
+  onOpenRepos: () => void;
   onReset: () => void;
 }
 
@@ -21,6 +22,7 @@ export function ProfileScreen({
   onOpenGoals,
   onOpenNudges,
   onOpenCalendar,
+  onOpenRepos,
   onReset,
 }: Props) {
   const repoCount = snapshot.repos.length;
@@ -160,6 +162,11 @@ export function ProfileScreen({
         </div>
 
         <div className="t-eyebrow" style={{ marginTop: 28, marginBottom: 10, padding: "0 4px" }}>
+          Repositories
+        </div>
+        <NavRow icon="repo" label="Repos" value={`${repoCount}`} onClick={onOpenRepos} />
+
+        <div className="t-eyebrow" style={{ marginTop: 24, marginBottom: 10, padding: "0 4px" }}>
           Goals
         </div>
         <NavRow

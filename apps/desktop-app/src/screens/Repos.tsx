@@ -1,24 +1,24 @@
 import { useState } from "react";
 import { Icon } from "../lib/icons";
 import { MiniRepoGraph } from "../components/shared";
+import { ScreenHeader } from "../components/ScreenHeader";
 import { AppSnapshot, DayPoint, RepoEntry } from "../lib/types";
 
 interface Props {
   snapshot: AppSnapshot;
   days: DayPoint[];
   onOpenRepo: (id: string) => void;
+  onBack: () => void;
 }
 
-export function ReposScreen({ snapshot, days, onOpenRepo }: Props) {
+export function ReposScreen({ snapshot, days, onOpenRepo, onBack }: Props) {
   const [filter, setFilter] = useState<"all" | "active">("active");
   const repos = snapshot.repos;
   const shown = repos.filter((r) => (filter === "all" ? true : r.today > 0));
 
   return (
     <div className="screen">
-      <div style={{ padding: "16px 20px 4px" }}>
-        <h1 className="t-h1">Repos</h1>
-      </div>
+      <ScreenHeader title="Repos" onBack={onBack} />
 
       <div style={{ padding: "12px 20px 8px", display: "flex", gap: 8 }}>
         {[

@@ -249,6 +249,15 @@ export default function App() {
     );
   } else if (overlay?.type === "commits") {
     body = <CommitsScreen snapshot={snapshot} onBack={() => setOverlay(null)} />;
+  } else if (overlay?.type === "repos") {
+    body = (
+      <ReposScreen
+        snapshot={snapshot}
+        days={days}
+        onOpenRepo={(id) => setOverlay({ type: "repo", id })}
+        onBack={() => setOverlay(null)}
+      />
+    );
   } else {
     body = (
       <>
@@ -261,13 +270,6 @@ export default function App() {
             onOpenCommits={() => setOverlay({ type: "commits" })}
           />
         )}
-        {tab === "repos" && (
-          <ReposScreen
-            snapshot={snapshot}
-            days={days}
-            onOpenRepo={(id) => setOverlay({ type: "repo", id })}
-          />
-        )}
         {tab === "calendar" && <CalendarScreen snapshot={snapshot} days={days} />}
         {tab === "profile" && (
           <ProfileScreen
@@ -277,6 +279,7 @@ export default function App() {
             onOpenGoals={() => setOverlay({ type: "goals" })}
             onOpenNudges={() => setOverlay({ type: "nudges" })}
             onOpenCalendar={() => setTab("calendar")}
+            onOpenRepos={() => setOverlay({ type: "repos" })}
             onReset={resetAccount}
           />
         )}

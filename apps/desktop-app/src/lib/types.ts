@@ -58,7 +58,7 @@ export const defaultConfig: Config = {
     milestone: true,
   },
   reminderTime: "21:00",
-  pollIntervalMinutes: 30,
+  pollIntervalMinutes: 15,
 };
 
 export interface CommitDetail {

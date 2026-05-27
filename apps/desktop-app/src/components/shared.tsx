@@ -111,6 +111,7 @@ export function ProgressRing({
   size = 168,
   stroke = 12,
   accent = "var(--grass-4)",
+  showGoalMarker = false,
   children,
 }: {
   value: number;
@@ -118,6 +119,7 @@ export function ProgressRing({
   size?: number;
   stroke?: number;
   accent?: string;
+  showGoalMarker?: boolean;
   children?: ReactNode;
 }) {
   const radius = (size - stroke) / 2;
@@ -152,6 +154,42 @@ export function ProgressRing({
           }}
         />
       </svg>
+      {showGoalMarker && goal > 0 && (
+        // The ring has no natural "horizontal" axis for a goal line, so we mark
+        // the 12 o'clock position (where progress completes a full loop) with a
+        // tick and a small caption — the closest analogue to a goal threshold.
+        <>
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              top: -2,
+              left: size / 2 - 1,
+              width: 2,
+              height: stroke + 4,
+              background: "var(--warn)",
+              borderRadius: 1,
+              pointerEvents: "none",
+            }}
+          />
+          <div
+            className="t-eyebrow t-mono"
+            style={{
+              position: "absolute",
+              top: -18,
+              left: 0,
+              right: 0,
+              textAlign: "center",
+              color: "var(--warn)",
+              fontSize: 10.5,
+              whiteSpace: "nowrap",
+              pointerEvents: "none",
+            }}
+          >
+            Goal · {goal}
+          </div>
+        </>
+      )}
       <div
         style={{
           position: "absolute",

@@ -12,7 +12,8 @@ import { GoalsScreen } from "./screens/Goals";
 import { NudgesScreen } from "./screens/Nudges";
 import { CommitsScreen } from "./screens/Commits";
 import { authStatus, getConfig, loadSnapshot, refresh as apiRefresh, saveConfig } from "./lib/api";
-import { checkForUpdates } from "./lib/updater";
+import { AvailableUpdate, checkForUpdates } from "./lib/updater";
+import { UpdatePrompt } from "./components/UpdatePrompt";
 import {
   AppSnapshot,
   Config,
@@ -33,6 +34,7 @@ export default function App() {
   const [snapshot, setSnapshot] = useState<AppSnapshot | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingUpdate, setPendingUpdate] = useState<AvailableUpdate | null>(null);
 
   const refreshInFlight = useRef<Promise<void> | null>(null);
   const saveTimer = useRef<number | null>(null);
@@ -94,7 +96,11 @@ export default function App() {
       } else {
         setStage("welcome");
       }
-      checkForUpdates(true).catch(() => undefined);
+      checkForUpdates()
+        .then((upd) => {
+          if (upd) setPendingUpdate(upd);
+        })
+        .catch(() => undefined);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -306,6 +312,9 @@ export default function App() {
       )}
       <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>{body}</div>
       {showTabs && <TabBar tab={tab} onTab={setTab} snapshot={snapshot} />}
+      {pendingUpdate && (
+        <UpdatePrompt update={pendingUpdate} onDismiss={() => setPendingUpdate(null)} />
+      )}
     </div>
   );
 }

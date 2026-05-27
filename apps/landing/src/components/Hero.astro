@@ -1,0 +1,86 @@
+---
+import Icon from "./Icon.astro";
+import HeroDownload from "./HeroDownload.astro";
+import DesktopMock from "./DesktopMock.astro";
+import { repoUrl } from "../lib/github-releases";
+
+interface Props {
+  version: string | null;
+}
+
+const { version } = Astro.props;
+const versionLabel = version ? `v${version}` : "Free & open source";
+---
+
+<header class="hero relative overflow-hidden pt-[72px] pb-10" id="download">
+  <div
+    class="absolute inset-0 pointer-events-none mask-fade-bottom"
+    aria-hidden="true"
+    style="background:
+      radial-gradient(ellipse 80% 50% at 50% 0%, rgba(57, 216, 120, 0.12), transparent 60%),
+      radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: auto, 22px 22px;"
+  >
+  </div>
+
+  <div class="container-page relative">
+    <div class="text-center max-w-[820px] mx-auto">
+      <div class="eyebrow-pill">
+        <span class="dot" aria-hidden="true"></span>
+        {versionLabel} · MIT licensed
+      </div>
+
+      <h1
+        class="font-semibold tracking-[-0.035em] leading-[1.02] mt-6"
+        style="font-size: clamp(40px, 6.5vw, 76px);"
+      >
+        Ship every day.<br />
+        Keep the <span class="text-grass-4">streak</span> alive.
+      </h1>
+
+      <p
+        class="text-fg-1 mt-[22px] mx-auto max-w-[580px] leading-[1.55]"
+        style="font-size: clamp(16px, 1.6vw, 19px);"
+      >
+        A desktop tracker for your GitHub commit goals.
+      </p>
+
+      <div class="cta-row flex items-center gap-3 flex-wrap justify-center mt-9">
+        <HeroDownload variant="hero" />
+        <a href={repoUrl} target="_blank" rel="noopener noreferrer" class="cta-secondary">
+          <Icon name="github" size={18} />
+          View on GitHub
+          <Icon name="arrow-up-right" size={14} stroke={2} />
+        </a>
+      </div>
+
+      <div class="mt-[18px] text-fg-2 text-[13px] flex gap-[18px] justify-center flex-wrap">
+        <span class="inline-flex items-center gap-1.5 whitespace-nowrap">
+          <Icon name="check" size={13} stroke={2.5} /> Free & open source
+        </span>
+        <span class="inline-flex items-center gap-1.5 whitespace-nowrap">
+          <Icon name="lock" size={13} /> Local-first, no analytics
+        </span>
+        <span class="font-mono whitespace-nowrap">macOS · Windows · Linux</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="container-page mt-16 relative">
+    <div
+      class="absolute pointer-events-none"
+      style="inset: -40px; background: radial-gradient(ellipse 60% 60% at 50% 50%, rgba(57,216,120,0.15), transparent 70%);"
+      aria-hidden="true"
+    >
+    </div>
+    <DesktopMock />
+  </div>
+</header>
+
+<p
+  id="cododoro-mobile-note"
+  role="status"
+  class="hidden text-center text-fg-2 text-sm mt-2 mb-6 max-w-xl mx-auto px-4"
+>
+  Cododoro is a desktop app. Available for macOS, Windows, and Linux.
+</p>

@@ -1,0 +1,76 @@
+---
+import Icon from "./Icon.astro";
+import OsIcon from "./OsIcon.astro";
+
+interface Props {
+  ariaLabel?: string;
+  showDropdown?: boolean;
+  variant?: "hero" | "final";
+}
+
+const { ariaLabel = "Download Cododoro", showDropdown = true, variant = "hero" } = Astro.props;
+
+const archOptions = [
+  { os: "macOS", arch: "Universal" },
+  { os: "Windows", arch: "x64 · ARM64" },
+  { os: "Linux", arch: ".deb · .rpm" },
+] as const;
+---
+
+<div class="relative inline-block" data-os-group>
+  <div
+    class="cta-primary-split"
+    role="group"
+    aria-label={ariaLabel}
+    data-cododoro-split-button={variant}
+  >
+    <button
+      type="button"
+      class="main-btn"
+      data-cododoro-download="auto"
+      data-cododoro-hero
+      aria-label="Download for detected operating system"
+    >
+      <span data-os-icon class="inline-flex items-center" aria-hidden="true">
+        <OsIcon os="macOS" size={20} />
+      </span>
+      <div class="text-left leading-tight whitespace-nowrap">
+        <div class="text-[11px] font-medium opacity-80 tracking-[0.01em]" data-cododoro-status>
+          Download for
+        </div>
+        <div class="text-[15px] font-semibold" data-os-label>macOS</div>
+      </div>
+    </button>
+    {
+      showDropdown && (
+        <>
+          <span class="divider-v" aria-hidden="true" />
+          <button
+            type="button"
+            class="other-os"
+            data-os-toggle
+            aria-haspopup="menu"
+            aria-expanded="false"
+            aria-label="Choose a different platform"
+          >
+            <Icon name="chevron-down" size={16} stroke={2.5} />
+          </button>
+        </>
+      )
+    }
+  </div>
+
+  {
+    showDropdown && (
+      <div class="os-dropdown hidden" role="menu" data-os-menu>
+        {archOptions.map(({ os, arch }) => (
+          <button type="button" class="os-option" role="menuitem" data-os-pick={os}>
+            <OsIcon os={os} size={16} />
+            <span>{os}</span>
+            <span class="arch">{arch}</span>
+          </button>
+        ))}
+      </div>
+    )
+  }
+</div>

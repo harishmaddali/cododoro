@@ -1,0 +1,251 @@
+---
+import Icon from "./Icon.astro";
+import Logo from "./Logo.astro";
+
+function mulberry32(seed: number) {
+  return () => {
+    let t = (seed += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function generateYear(seed: number) {
+  const rng = mulberry32(seed);
+  const weeks = 52;
+  const total = weeks * 7;
+  const cells: number[] = [];
+  const intensity = 0.78;
+  const peakBoost = 0.3;
+  for (let i = 0; i < total; i++) {
+    const weekendMod = i % 7 === 0 || i % 7 === 6 ? 0.55 : 1;
+    let p = rng() * weekendMod;
+    p += (i / total) * 0.18;
+    let level = 0;
+    if (p > 1 - intensity - peakBoost) level = 4;
+    else if (p > 1 - intensity - peakBoost + 0.18) level = 3;
+    else if (p > 1 - intensity - peakBoost + 0.36) level = 2;
+    else if (p > 1 - intensity - peakBoost + 0.55) level = 1;
+    cells.push(level);
+  }
+  cells[cells.length - 1] = 4;
+  return cells;
+}
+
+const heatmap = generateYear(12);
+
+const sidebarItems = [
+  { icon: "home" as const, label: "Today", active: true },
+  { icon: "repo" as const, label: "Repos" },
+  { icon: "calendar" as const, label: "History" },
+  { icon: "target" as const, label: "Goals" },
+  { icon: "trophy" as const, label: "Achievements" },
+];
+
+const repos = [
+  { name: "core-engine", color: "#3b82f6", today: 5, goal: 3 },
+  { name: "design-system", color: "#ff3e00", today: 2, goal: 2 },
+  { name: "blog-rewrite", color: "#a855f7", today: 1, goal: 1 },
+  { name: "side-quest", color: "#dea584", today: 0, goal: 1 },
+];
+
+const stats = [
+  { label: "Streak", value: "87", sub: "days", accent: true },
+  { label: "This week", value: "45", sub: "commits", accent: false },
+  { label: "Active repos", value: "4", sub: "of 5", accent: false },
+];
+---
+
+<div
+  class="relative z-[1] mx-auto w-full max-w-[1160px] bg-bg-1 rounded-2xl overflow-hidden border border-line-2"
+  style="box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 50px 80px -30px rgba(0,0,0,0.7), 0 30px 60px -20px rgba(57,216,120,0.12);"
+>
+  <div
+    class="h-9 flex items-center px-3.5 gap-3.5 border-b border-line"
+    style="background: linear-gradient(180deg, #14191f, #0d1117);"
+  >
+    <div class="traffic">
+      <span class="r"></span>
+      <span class="y"></span>
+      <span class="g"></span>
+    </div>
+    <div class="flex-1 text-center text-[12px] text-fg-2 font-mono">cododoro · main</div>
+    <div style="width: 60px;"></div>
+  </div>
+
+  <div class="grid" style="grid-template-columns: 220px 1fr; min-height: 540px;">
+    <aside class="border-r border-line p-4 flex flex-col gap-1" style="background: #0a0d12;">
+      <div class="flex items-center gap-2.5 px-2 pt-2.5 pb-4">
+        <Logo size={20} showWordmark={false} />
+        <div class="text-[14px] font-semibold">Cododoro</div>
+      </div>
+      {
+        sidebarItems.map((item) => (
+          <div
+            class:list={[
+              "flex items-center gap-3 py-2 px-2.5 rounded-lg text-[13px] font-medium",
+              item.active ? "text-grass-4" : "text-fg-1",
+            ]}
+            style={item.active ? "background: rgba(57,216,120,0.08);" : ""}
+          >
+            <Icon name={item.icon} size={15} stroke={1.5} />
+            {item.label}
+          </div>
+        ))
+      }
+      <div class="mt-auto pt-3">
+        <div class="flex items-center gap-2.5 p-2 rounded-lg bg-bg-2" aria-hidden="true">
+          <div
+            class="w-[26px] h-[26px] rounded-full grid place-items-center text-[10px] font-semibold font-mono"
+            style="background: linear-gradient(135deg, #14633a, #39d878); color: #03130a;"
+          >
+            EM
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-[12px] font-medium">evan.m</div>
+            <div class="text-[10.5px] text-fg-3 font-mono">87-day streak</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="px-7 py-6 overflow-hidden">
+      <div class="flex justify-between items-start gap-3 mb-6">
+        <div class="min-w-0">
+          <div
+            class="text-[11.5px] text-fg-2 tracking-[0.05em] uppercase font-semibold whitespace-nowrap"
+          >
+            Wednesday · May 17
+          </div>
+          <div class="text-[22px] font-semibold tracking-[-0.015em] mt-1 whitespace-nowrap">
+            Good morning, evan.
+          </div>
+        </div>
+        <div class="pill pill-green" style="height: 28px; font-size: 11.5px;">
+          <Icon name="check" size={12} stroke={3} /> Goal hit · 5/3
+        </div>
+      </div>
+
+      <div class="grid items-center gap-6" style="grid-template-columns: auto 1fr;">
+        <div class="relative" style="width: 120px; height: 120px;">
+          <svg width="120" height="120" style="transform: rotate(-90deg);" aria-hidden="true">
+            <circle cx="60" cy="60" r="55" stroke="#1a2129" stroke-width="10" fill="none"></circle>
+            <circle
+              cx="60"
+              cy="60"
+              r="55"
+              stroke="#39d878"
+              stroke-width="10"
+              fill="none"
+              stroke-dasharray={2 * Math.PI * 55}
+              stroke-dashoffset="0"
+              stroke-linecap="round"
+              style="filter: drop-shadow(0 0 10px rgba(57,216,120,0.45));"></circle>
+          </svg>
+          <div class="absolute inset-0 grid place-items-center">
+            <div class="text-center">
+              <div class="font-mono font-medium leading-none text-grass-4" style="font-size: 30px;">
+                5<span class="text-fg-3 font-light">/3</span>
+              </div>
+              <div class="text-[10.5px] text-fg-2 mt-1 whitespace-nowrap">commits today</div>
+            </div>
+          </div>
+        </div>
+        <div class="grid gap-2.5" style="grid-template-columns: 1fr 1fr 1fr;">
+          {
+            stats.map((s) => (
+              <div class="bg-bg-2 border border-line rounded-[10px] py-3 px-3.5 min-w-0 overflow-hidden">
+                <div class="text-[10px] text-fg-2 tracking-[0.08em] uppercase font-semibold whitespace-nowrap">
+                  {s.label}
+                </div>
+                <div class="flex items-baseline gap-1 mt-1.5 whitespace-nowrap">
+                  <div
+                    class:list={["font-mono font-medium", s.accent ? "text-grass-4" : "text-fg-0"]}
+                    style="font-size: 22px;"
+                  >
+                    {s.value}
+                  </div>
+                  <div class="text-[11px] text-fg-3">{s.sub}</div>
+                </div>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+
+      <div class="mt-[22px]">
+        <div class="flex items-baseline justify-between gap-3 mb-2.5">
+          <div class="text-[13px] font-semibold tracking-[-0.01em] whitespace-nowrap">
+            Today's repos
+          </div>
+          <div class="text-[11px] text-fg-3 font-mono whitespace-nowrap">4 tracked</div>
+        </div>
+        <div class="grid gap-2" style="grid-template-columns: 1fr 1fr;">
+          {
+            repos.map((r) => {
+              const done = r.today >= r.goal;
+              const pct = Math.min(100, (r.today / r.goal) * 100);
+              return (
+                <div class="flex items-center gap-2.5 py-2.5 px-3 bg-bg-2 border border-line rounded-[10px]">
+                  <div
+                    class="rounded-[2px]"
+                    style={`width: 8px; height: 8px; background: ${r.color};`}
+                  />
+                  <div class="flex-1 min-w-0">
+                    <div class="text-[12px] font-mono font-medium overflow-hidden whitespace-nowrap text-ellipsis">
+                      {r.name}
+                    </div>
+                    <div class="bg-bg-3 rounded-[2px] mt-1.5 overflow-hidden" style="height: 3px;">
+                      <div
+                        style={`height:100%; width:${pct}%; background: ${done ? "#39d878" : "#14633a"};`}
+                      />
+                    </div>
+                  </div>
+                  <div class:list={["font-mono text-[12px]", done ? "text-grass-4" : "text-fg-0"]}>
+                    {r.today}
+                    <span class="text-fg-3">/{r.goal}</span>
+                  </div>
+                </div>
+              );
+            })
+          }
+        </div>
+      </div>
+
+      <div class="mt-5">
+        <div class="flex items-center justify-between gap-3 mb-2.5">
+          <div class="text-[13px] font-semibold tracking-[-0.01em] whitespace-nowrap">
+            This year
+          </div>
+          <div class="flex items-center gap-1.5 text-[10.5px] text-fg-2 whitespace-nowrap">
+            <span>Less</span>
+            <div class="cell" style="width: 9px; height: 9px;"></div>
+            <div class="cell" data-l="1" style="width: 9px; height: 9px;"></div>
+            <div class="cell" data-l="2" style="width: 9px; height: 9px;"></div>
+            <div class="cell" data-l="3" style="width: 9px; height: 9px;"></div>
+            <div class="cell" data-l="4" style="width: 9px; height: 9px;"></div>
+            <span>More</span>
+          </div>
+        </div>
+        <div class="bg-bg-2 border border-line rounded-[10px] p-2 overflow-hidden">
+          <div
+            class="grid"
+            style="grid-template-columns: repeat(52, 1fr); grid-template-rows: repeat(7, 1fr); grid-auto-flow: column; gap: 2.5px; height: 90px; width: 100%;"
+            aria-hidden="true"
+          >
+            {
+              heatmap.map((level) => (
+                <div
+                  class="cell"
+                  data-l={level || undefined}
+                  style="width: 100%; height: 100%; min-width: 0;"
+                />
+              ))
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

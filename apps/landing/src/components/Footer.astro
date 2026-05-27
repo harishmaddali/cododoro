@@ -1,0 +1,52 @@
+---
+import Logo from "./Logo.astro";
+import { repoUrl } from "../lib/github-releases";
+
+interface Props {
+  version: string | null;
+  year: number;
+}
+
+const { version, year } = Astro.props;
+---
+
+<footer class="border-t border-line bg-bg-0 py-7">
+  <div class="container-page">
+    <div class="flex flex-col md:flex-row justify-between items-center gap-4 text-[13px] text-fg-2">
+      <div class="flex items-center gap-3">
+        <Logo size={20} showWordmark={false} />
+        <div class="text-[14px] font-semibold text-fg-0">Cododoro</div>
+        {
+          version && (
+            <span class="font-mono text-fg-3" style="font-size: 12px;">
+              v{version}
+            </span>
+          )
+        }
+      </div>
+      <div class="flex items-center gap-[22px]">
+        <a
+          href={repoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-fg-2 hover:text-fg-0 no-underline"
+          style="font-size: 13px;">GitHub</a
+        >
+        <a
+          href={`${repoUrl}/blob/main/LICENSE`}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-fg-2 hover:text-fg-0 no-underline"
+          style="font-size: 13px;">License</a
+        >
+        <span class="inline-flex items-center gap-1.5 text-grass-4" style="font-size: 13px;">
+          <span
+            class="inline-block rounded-full"
+            style="width: 6px; height: 6px; background: #39d878; box-shadow: 0 0 6px rgba(57,216,120,0.45);"
+            aria-hidden="true"></span>
+          MIT · © {year}
+        </span>
+      </div>
+    </div>
+  </div>
+</footer>

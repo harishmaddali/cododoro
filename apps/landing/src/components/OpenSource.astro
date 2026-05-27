@@ -1,0 +1,98 @@
+---
+import Icon from "./Icon.astro";
+import { repoUrl, GITHUB_REPO } from "../lib/github-releases";
+---
+
+<section
+  id="oss"
+  aria-labelledby="oss-title"
+  class="py-20"
+  style="background: linear-gradient(180deg, transparent 0%, rgba(57,216,120,0.04) 100%); border-top: 1px solid var(--line, #1f2733); border-bottom: 1px solid var(--line, #1f2733);"
+>
+  <div class="container-page">
+    <div class="grid items-center gap-10 md:gap-[60px]" style="grid-template-columns: 1fr;">
+      <div class="oss-grid grid items-center gap-10 md:gap-[60px]">
+        <div>
+          <h2
+            id="oss-title"
+            class="font-semibold tracking-[-0.025em] leading-[1.1] m-0"
+            style="font-size: clamp(28px, 3.5vw, 42px);"
+          >
+            MIT licensed.<br />Built in public.
+          </h2>
+          <p class="text-fg-1 mt-4 leading-[1.6]" style="font-size: 16.5px;">
+            Astro + Tauri-friendly heatmap renderer. Local-first. No telemetry.
+          </p>
+
+          <a
+            href={repoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="cta-secondary mt-7"
+            style="height: 46px; font-size: 14px; padding: 0 18px;"
+          >
+            <Icon name="github" size={16} />
+            github.com/{GITHUB_REPO}
+            <Icon name="arrow-up-right" size={13} stroke={2} />
+          </a>
+        </div>
+
+        <div>
+          <div class="terminal">
+            <div class="terminal-head">
+              <div class="traffic">
+                <span class="r"></span>
+                <span class="y"></span>
+                <span class="g"></span>
+              </div>
+              <div class="flex-1 text-center text-[11.5px] text-fg-3">~/cododoro</div>
+            </div>
+            <div class="terminal-body">
+              <div class="terminal-line">
+                <span class="comment"># clone &amp; run locally</span>
+              </div>
+              <div class="terminal-line">
+                <span class="prompt">$</span><span class="cmd"
+                  >git clone github.com/{GITHUB_REPO}</span
+                >
+              </div>
+              <div class="terminal-line">
+                <span class="prompt">$</span><span class="cmd"
+                  >cd cododoro &amp;&amp; pnpm install</span
+                >
+              </div>
+              <div class="terminal-line">
+                <span class="prompt">$</span><span class="cmd">pnpm tauri dev</span>
+              </div>
+              <div class="terminal-line">
+                <span class="out">&nbsp;&nbsp;Compiling cododoro</span>
+              </div>
+              <div class="terminal-line">
+                <span class="out">&nbsp;&nbsp;Finished in <span class="green">2.8s</span></span>
+              </div>
+              <div class="terminal-line">
+                <span class="out"
+                  >&nbsp;&nbsp;Launching app at <span class="green">127.0.0.1:1420</span></span
+                >
+              </div>
+              <div class="terminal-line">
+                <span class="prompt">$</span><span class="terminal-caret" aria-hidden="true"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .oss-grid {
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 900px) {
+    .oss-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+</style>

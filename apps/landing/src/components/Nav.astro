@@ -1,0 +1,71 @@
+---
+import Logo from "./Logo.astro";
+import Icon from "./Icon.astro";
+import { repoUrl } from "../lib/github-releases";
+
+interface Props {
+  version: string | null;
+}
+
+const { version } = Astro.props;
+---
+
+<nav
+  class="sticky top-0 z-50 border-b border-line backdrop-blur"
+  style="background: rgba(7,9,12,0.7);"
+>
+  <div class="container-page flex items-center justify-between py-4 gap-3">
+    <a
+      href="/"
+      class="flex items-center gap-2.5 no-underline text-fg-0 shrink-0"
+      aria-label="Cododoro home"
+    >
+      <Logo size={24} showWordmark={false} />
+      <div class="text-[16px] font-semibold tracking-[-0.01em]">Cododoro</div>
+      {
+        version && (
+          <span
+            class="font-mono text-[11px] text-fg-2 border border-line bg-bg-2 rounded px-1.5 py-0.5"
+            aria-label={`Latest release version ${version}`}
+          >
+            v{version}
+          </span>
+        )
+      }
+    </a>
+
+    <div class="hidden md:flex items-center gap-7">
+      <a
+        href="#features"
+        class="text-[14px] font-medium text-fg-1 hover:text-fg-0 whitespace-nowrap no-underline"
+        >Features</a
+      >
+      <a
+        href="#oss"
+        class="text-[14px] font-medium text-fg-1 hover:text-fg-0 whitespace-nowrap no-underline"
+        >Open source</a
+      >
+    </div>
+
+    <div class="flex items-center gap-3">
+      <a
+        href={repoUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="gh-pill"
+        aria-label="View Cododoro on GitHub"
+      >
+        <Icon name="github" size={16} />
+        <span>GitHub</span>
+      </a>
+      <a
+        href="#download"
+        class="cta-secondary"
+        style="height: 36px; font-size: 13px; padding: 0 14px;"
+        aria-label="Jump to download section"
+      >
+        Download
+      </a>
+    </div>
+  </div>
+</nav>

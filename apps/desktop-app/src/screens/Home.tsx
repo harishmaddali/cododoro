@@ -12,13 +12,7 @@ interface Props {
   onOpenCommits: () => void;
 }
 
-export function Home({
-  snapshot,
-  refreshing,
-  onRefresh,
-  onOpenRepo,
-  onOpenCommits,
-}: Props) {
+export function Home({ snapshot, refreshing, onRefresh, onOpenRepo, onOpenCommits }: Props) {
   // Re-render once a minute so the time-left countdown below stays accurate.
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -189,7 +183,7 @@ export function Home({
               No qualifying commits yet today.
             </div>
           )}
-          {snapshot.recentCommits.slice(0, 5).map((c, i, a) => (
+          {snapshot.recentCommits.slice(0, 3).map((c, i, a) => (
             <Fragment key={c.sha}>
               <CommitRow commit={c} />
               {i < a.length - 1 && <div className="divider" style={{ marginLeft: 50 }} />}

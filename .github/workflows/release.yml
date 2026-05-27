@@ -78,6 +78,13 @@ jobs:
             apps/desktop-app/src-tauri/Cargo.toml \
             apps/desktop-app/src-tauri/Cargo.lock \
             apps/desktop-app/src-tauri/tauri.conf.json
+
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Nothing to release — version files already at v${NEXT}."
+            echo "released=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           git commit -m "chore(release): v${NEXT} [skip ci]"
           git tag "v${NEXT}"
           git push origin HEAD:main
@@ -87,8 +94,8 @@ jobs:
           echo "new_tag=v${NEXT}" >> "$GITHUB_OUTPUT"
 
       - name: Nothing to release
-        if: steps.next.outputs.released != 'true'
-        run: echo "No releasable commits since the last tag — skipping."
+        if: steps.bump.outputs.released != 'true'
+        run: echo "No releasable commits / no version change to push — skipping."
 
   build:
     needs: version

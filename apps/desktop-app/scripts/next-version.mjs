@@ -16,9 +16,14 @@
 //
 // Output:
 //   • human-readable summary on stderr
-//   • when running in GitHub Actions, `released`, `next_version`, `level` and
-//     `prev_tag` are appended to $GITHUB_OUTPUT
+//   • when running in GitHub Actions, `released`, `next_version`, `level`,
+//     `prev_tag` and `is_bootstrap` are appended to $GITHUB_OUTPUT
 //   • prints `<version>` (or empty) on stdout for shell capture
+//
+// `is_bootstrap=true` is emitted when no v* tag exists yet AND we decided to
+// release. In that case the version files already match next_version, so the
+// release workflow has nothing to commit — but it still needs to push the
+// initial tag to trigger the publish pipeline.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, appendFileSync } from "node:fs";
@@ -137,10 +142,12 @@ if (messages.length === 0) {
   nextVersion = bump(base, level);
 }
 
+const isBootstrap = released && !prevTag;
+
 // --- Emit ------------------------------------------------------------------
 console.error(
   `prev_tag=${prevTag || "<none>"}  commits=${messages.length}  level=${level}  ` +
-    `released=${released}  next=${nextVersion || "<none>"}`,
+    `released=${released}  next=${nextVersion || "<none>"}  bootstrap=${isBootstrap}`,
 );
 
 if (process.env.GITHUB_OUTPUT) {
@@ -149,7 +156,8 @@ if (process.env.GITHUB_OUTPUT) {
     `released=${released}\n` +
       `next_version=${nextVersion}\n` +
       `level=${level}\n` +
-      `prev_tag=${prevTag}\n`,
+      `prev_tag=${prevTag}\n` +
+      `is_bootstrap=${isBootstrap}\n`,
   );
 }
 

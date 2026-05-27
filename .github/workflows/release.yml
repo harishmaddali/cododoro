@@ -67,6 +67,7 @@ jobs:
         if: steps.next.outputs.released == 'true'
         env:
           NEXT: ${{ steps.next.outputs.next_version }}
+          IS_BOOTSTRAP: ${{ steps.next.outputs.is_bootstrap }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -80,6 +81,14 @@ jobs:
             apps/desktop-app/src-tauri/tauri.conf.json
 
           if [ -z "$(git status --porcelain)" ]; then
+            if [ "$IS_BOOTSTRAP" = "true" ]; then
+              echo "Bootstrap release — version files already at v${NEXT}; skipping commit, pushing tag only."
+              git tag "v${NEXT}"
+              git push origin "v${NEXT}"
+              echo "released=true" >> "$GITHUB_OUTPUT"
+              echo "new_tag=v${NEXT}" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
             echo "Nothing to release — version files already at v${NEXT}."
             echo "released=false" >> "$GITHUB_OUTPUT"
             exit 0

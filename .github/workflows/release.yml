@@ -1,6 +1,6 @@
 name: Release
 
-# Cuts a new release whenever code lands on main.
+# Cuts a new release once per day at 00:00 UTC, or on manual dispatch.
 #
 # Flow:
 #   1. version job — work out the next version from Conventional Commits,
@@ -9,19 +9,13 @@ name: Release
 #   2. build job — call the Publish Release workflow on that tag to build,
 #      sign and publish the macOS / Windows / Linux installers.
 #
-# Doc- and CI-only pushes are filtered out below; add `[skip release]` to a
-# commit message to opt a specific push out entirely.
+# next-version.mjs no-ops when there are no releasable commits since the last
+# tag, so quiet days produce nothing.
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '**/*.md'
-      - 'apps/desktop-app/docs/**'
-      - 'apps/landing/**'
-      - '.github/**'
-      - 'LICENSE'
-      - '.gitignore'
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -32,7 +26,6 @@ concurrency:
 
 jobs:
   version:
-    if: ${{ !contains(github.event.head_commit.message, '[skip release]') }}
     runs-on: ubuntu-latest
     outputs:
       released: ${{ steps.bump.outputs.released }}

@@ -42,7 +42,7 @@ pub async fn refresh(
 ) -> Result<AppSnapshot, String> {
     let state = state.inner().clone();
     let config = state.db.load_config();
-    let snap = gh::build_snapshot(&config).await?;
+    let snap = gh::build_snapshot(&state.db, &config).await?;
 
     if let Ok(value) = serde_json::to_value(&snap) {
         let _ = state.db.save_snapshot(&value);

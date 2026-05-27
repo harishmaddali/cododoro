@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Mutex;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
@@ -27,6 +28,17 @@ impl Db {
             [],
         )
         .map_err(|e| format!("failed to init schema: {e}"))?;
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS commit_files_cache (
+                repo TEXT NOT NULL,
+                sha TEXT NOT NULL,
+                files_json TEXT NOT NULL,
+                cached_at INTEGER NOT NULL,
+                PRIMARY KEY (repo, sha)
+            )",
+            [],
+        )
+        .map_err(|e| format!("failed to init commit cache schema: {e}"))?;
         Ok(Self {
             conn: Mutex::new(conn),
         })
@@ -86,6 +98,54 @@ impl Db {
 
     pub fn save_snapshot(&self, snapshot: &serde_json::Value) -> Result<(), String> {
         self.set_json(SNAPSHOT_KEY, snapshot)
+    }
+
+    /// Look up cached file list for a previously fetched commit. Commits are
+    /// immutable, so a hit here lets us skip the per-commit `/commits/{sha}`
+    /// REST call entirely on re-refresh.
+    pub fn get_cached_commit_files(
+        &self,
+        repo: &str,
+        sha: &str,
+    ) -> Result<Option<Vec<String>>, String> {
+        let conn = self.conn.lock().unwrap();
+        let row = conn.query_row(
+            "SELECT files_json FROM commit_files_cache WHERE repo = ?1 AND sha = ?2",
+            [repo, sha],
+            |row| row.get::<_, String>(0),
+        );
+        match row {
+            Ok(raw) => serde_json::from_str(&raw)
+                .map(Some)
+                .map_err(|e| format!("corrupt commit_files_cache row: {e}")),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(err) => Err(format!("db read failed: {err}")),
+        }
+    }
+
+    pub fn put_cached_commit_files(
+        &self,
+        repo: &str,
+        sha: &str,
+        files: &[String],
+    ) -> Result<(), String> {
+        let raw =
+            serde_json::to_string(files).map_err(|e| format!("serialize commit files: {e}"))?;
+        let cached_at = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO commit_files_cache (repo, sha, files_json, cached_at)
+             VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(repo, sha) DO UPDATE SET
+                files_json = excluded.files_json,
+                cached_at = excluded.cached_at",
+            rusqlite::params![repo, sha, raw, cached_at],
+        )
+        .map_err(|e| format!("db write failed: {e}"))?;
+        Ok(())
     }
 }
 

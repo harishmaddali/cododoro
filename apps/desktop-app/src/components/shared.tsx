@@ -111,7 +111,6 @@ export function ProgressRing({
   size = 168,
   stroke = 12,
   accent = "var(--grass-4)",
-  showGoalMarker = false,
   children,
 }: {
   value: number;
@@ -119,7 +118,6 @@ export function ProgressRing({
   size?: number;
   stroke?: number;
   accent?: string;
-  showGoalMarker?: boolean;
   children?: ReactNode;
 }) {
   const radius = (size - stroke) / 2;
@@ -154,42 +152,6 @@ export function ProgressRing({
           }}
         />
       </svg>
-      {showGoalMarker && goal > 0 && (
-        // The ring has no natural "horizontal" axis for a goal line, so we mark
-        // the 12 o'clock position (where progress completes a full loop) with a
-        // tick and a small caption — the closest analogue to a goal threshold.
-        <>
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              top: -2,
-              left: size / 2 - 1,
-              width: 2,
-              height: stroke + 4,
-              background: "var(--warn)",
-              borderRadius: 1,
-              pointerEvents: "none",
-            }}
-          />
-          <div
-            className="t-eyebrow t-mono"
-            style={{
-              position: "absolute",
-              top: -18,
-              left: 0,
-              right: 0,
-              textAlign: "center",
-              color: "var(--warn)",
-              fontSize: 10.5,
-              whiteSpace: "nowrap",
-              pointerEvents: "none",
-            }}
-          >
-            Goal · {goal}
-          </div>
-        </>
-      )}
       <div
         style={{
           position: "absolute",
@@ -673,48 +635,33 @@ export function SevenDayChart({ days, goal }: { days: DayPoint[]; goal: number }
   const labels = days.map((d) =>
     d.date.toLocaleDateString(undefined, { weekday: "short" }).slice(0, 2),
   );
+  const showGoalLine = goal > 0;
+  const goalPct = showGoalLine ? (goal / max) * 100 : 0;
   return (
-    <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 90 }}>
-      {days.map((d, i) => {
-        const h = (d.count / max) * 100;
-        const hitGoal = d.count >= goal && goal > 0;
-        const isToday = i === days.length - 1;
-        return (
-          <div
-            key={i}
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 6,
-              height: "100%",
-            }}
-          >
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, height: 90 }}>
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "flex-end",
+          gap: 8,
+          position: "relative",
+        }}
+      >
+        {days.map((d, i) => {
+          const h = (d.count / max) * 100;
+          const hitGoal = d.count >= goal && goal > 0;
+          const isToday = i === days.length - 1;
+          return (
             <div
+              key={i}
               style={{
                 flex: 1,
-                width: "100%",
+                height: "100%",
                 display: "flex",
                 alignItems: "flex-end",
-                position: "relative",
               }}
             >
-              {i === 0 && (
-                <div
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    right: 0,
-                    bottom: `${(goal / max) * 100}%`,
-                    height: 1,
-                    background:
-                      "repeating-linear-gradient(to right, var(--line-2) 0, var(--line-2) 4px, transparent 4px, transparent 8px)",
-                    width: "100%",
-                    zIndex: 0,
-                  }}
-                />
-              )}
               <div
                 style={{
                   width: "100%",
@@ -729,9 +676,56 @@ export function SevenDayChart({ days, goal }: { days: DayPoint[]; goal: number }
                 }}
               />
             </div>
+          );
+        })}
+        {showGoalLine && (
+          <>
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                bottom: `${goalPct}%`,
+                height: 0,
+                borderTop: "1px dashed var(--warn)",
+                pointerEvents: "none",
+                zIndex: 1,
+              }}
+            />
             <div
               className="t-mono"
               style={{
+                position: "absolute",
+                right: 0,
+                bottom: `calc(${goalPct}% + 1px)`,
+                fontSize: 9.5,
+                fontWeight: 600,
+                letterSpacing: "0.05em",
+                textTransform: "uppercase",
+                color: "var(--warn)",
+                padding: "0 4px",
+                background: "var(--bg-1)",
+                pointerEvents: "none",
+                zIndex: 2,
+                lineHeight: 1,
+              }}
+            >
+              Goal · {goal}
+            </div>
+          </>
+        )}
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        {days.map((_, i) => {
+          const isToday = i === days.length - 1;
+          return (
+            <div
+              key={i}
+              className="t-mono"
+              style={{
+                flex: 1,
+                textAlign: "center",
                 fontSize: 10,
                 color: isToday ? "var(--fg-0)" : "var(--fg-3)",
                 fontWeight: isToday ? 600 : 400,
@@ -739,9 +733,9 @@ export function SevenDayChart({ days, goal }: { days: DayPoint[]; goal: number }
             >
               {labels[i]}
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

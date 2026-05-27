@@ -128,14 +128,14 @@ input[type="number"] {
 .tabbar {
   flex: 0 0 70px;
   height: 70px;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
   border-top: 1px solid var(--line);
   background: linear-gradient(180deg, rgba(7, 9, 12, 0.6), var(--bg-0) 50%);
   backdrop-filter: blur(8px);
   padding-bottom: 8px;
 }
 .tabbar button {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -155,6 +155,8 @@ input[type="number"] {
   content: "";
   position: absolute;
   top: 0;
+  left: 50%;
+  transform: translateX(-50%);
   width: 24px;
   height: 2px;
   background: var(--grass-4);

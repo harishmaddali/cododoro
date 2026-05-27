@@ -7,7 +7,7 @@ use chrono::{Datelike, Local, NaiveDate, TimeZone, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::db::{Config, Filters};
+use crate::db::{Config, Db, Filters};
 
 #[derive(Debug, Serialize, Clone)]
 pub struct GhStatus {
@@ -85,6 +85,15 @@ struct Viewer {
     login: String,
     name: Option<String>,
     avatar_url: String,
+}
+
+/// Bundle of everything the combined viewer GraphQL query returns: identity,
+/// the year-long contribution calendar, and the user's repository list.
+#[derive(Debug, Clone)]
+struct ViewerSnapshot {
+    viewer: Viewer,
+    calendar: Vec<Vec<(String, u32)>>,
+    repos: Vec<RepoMeta>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -174,20 +183,27 @@ const REQUEST_TIMEOUT_SECS: u64 = 30;
 
 /// Fetch everything the UI needs and fold it into a single snapshot using the
 /// user's stored configuration (goal, commit filters, schedule).
-pub async fn build_snapshot(config: &Config) -> Result<AppSnapshot, String> {
+pub async fn build_snapshot(db: &Db, config: &Config) -> Result<AppSnapshot, String> {
     let token = fetch_cli_token().await?;
     let api = GitHubApi::new(token)?;
 
-    let viewer = api.fetch_viewer().await?;
-    let calendar = api.fetch_contribution_calendar().await?;
-    let repo_meta = api.fetch_user_repos().await.unwrap_or_default();
+    // One GraphQL round-trip pulls viewer identity, the year-long contribution
+    // calendar, and the user's repository list — fields that used to take three
+    // separate calls (one GraphQL + one REST + one REST/affiliation).
+    let ViewerSnapshot {
+        viewer,
+        calendar,
+        repos: repo_meta,
+    } = api.fetch_viewer_snapshot().await?;
 
     let now_local = Local::now();
     let today = now_local.date_naive();
 
-    // Today's filtered commits (per-repo + recent list).
+    // Today's filtered commits (per-repo + recent list). The per-commit file
+    // inspection hit by `filters.docs`/`filters.lock` reads through `db` so
+    // repeat refreshes don't re-fetch immutable commit data.
     let (today_count, today_by_repo, recent_commits) =
-        fetch_today(&api, &viewer.login, &config.filters, today).await?;
+        fetch_today(&api, db, &viewer.login, &config.filters, today).await?;
 
     // Lightweight last-7-day per-repo counts (no per-commit file inspection).
     let week_by_repo = fetch_week(&api, &viewer.login, &config.filters, today)
@@ -230,6 +246,7 @@ pub async fn build_snapshot(config: &Config) -> Result<AppSnapshot, String> {
 
 async fn fetch_today(
     api: &GitHubApi,
+    db: &Db,
     login: &str,
     filters: &Filters,
     today: NaiveDate,
@@ -256,12 +273,30 @@ async fn fetch_today(
     let mut count = 0u32;
     let mut by_repo: BTreeMap<String, u32> = BTreeMap::new();
     let mut commits: Vec<CommitDetail> = Vec::new();
-    process_today_page(api, &first, filters, &mut count, &mut by_repo, &mut commits).await?;
+    process_today_page(
+        api,
+        db,
+        &first,
+        filters,
+        &mut count,
+        &mut by_repo,
+        &mut commits,
+    )
+    .await?;
 
     let pages = total.div_ceil(PAGE_SIZE).min(SAFETY_PAGE_CAP);
     for page in 2..=pages {
         let json = api.search_commits(&query, page).await?;
-        process_today_page(api, &json, filters, &mut count, &mut by_repo, &mut commits).await?;
+        process_today_page(
+            api,
+            db,
+            &json,
+            filters,
+            &mut count,
+            &mut by_repo,
+            &mut commits,
+        )
+        .await?;
     }
 
     commits.sort_by(|a, b| b.authored_at.cmp(&a.authored_at));
@@ -479,7 +514,11 @@ fn longest_streak(days: &[DayCount], schedule: &[String]) -> (u32, String) {
     let range = if best == 0 {
         String::new()
     } else {
-        format!("{} — {}", pretty_month(&best_start), pretty_month(&best_end))
+        format!(
+            "{} — {}",
+            pretty_month(&best_start),
+            pretty_month(&best_end)
+        )
     };
     (best, range)
 }
@@ -511,10 +550,7 @@ impl GitHubApi {
 
     async fn fetch_viewer(&self) -> Result<Viewer, String> {
         let json = self
-            .graphql(
-                "query { viewer { login name avatarUrl } }",
-                json!({}),
-            )
+            .graphql("query { viewer { login name avatarUrl } }", json!({}))
             .await?;
         let viewer = &json["data"]["viewer"];
         let login = viewer["login"]
@@ -529,18 +565,60 @@ impl GitHubApi {
         })
     }
 
-    /// Past-year daily contribution calendar grouped into weeks of
-    /// `(date, count)` tuples — drives the heatmap, streaks and trend charts.
-    async fn fetch_contribution_calendar(&self) -> Result<Vec<Vec<(String, u32)>>, String> {
-        let query = "query { viewer { contributionsCollection { contributionCalendar { \
-            weeks { contributionDays { date contributionCount } } } } } }";
+    /// Single GraphQL round-trip that returns the viewer's identity, the
+    /// year-long contribution calendar, and the user's repository list. This
+    /// replaces three previous calls (viewer GraphQL + calendar GraphQL +
+    /// `/user/repos` REST) so a baseline refresh issues one HTTP request here
+    /// instead of three.
+    async fn fetch_viewer_snapshot(&self) -> Result<ViewerSnapshot, String> {
+        let query = "query {
+  viewer {
+    login
+    name
+    avatarUrl
+    contributionsCollection {
+      contributionCalendar {
+        weeks {
+          contributionDays {
+            date
+            contributionCount
+          }
+        }
+      }
+    }
+    repositories(
+      first: 100
+      affiliations: [OWNER, COLLABORATOR]
+      orderBy: { field: PUSHED_AT, direction: DESC }
+    ) {
+      nodes {
+        nameWithOwner
+        isFork
+        url
+        primaryLanguage { name }
+        owner { login avatarUrl }
+      }
+    }
+  }
+}";
         let json = self.graphql(query, json!({})).await?;
-        let weeks = json["data"]["viewer"]["contributionsCollection"]["contributionCalendar"]
-            ["weeks"]
+        let viewer_data = &json["data"]["viewer"];
+
+        let login = viewer_data["login"]
+            .as_str()
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| "GitHub did not return a login".to_string())?
+            .to_string();
+        let viewer = Viewer {
+            login,
+            name: viewer_data["name"].as_str().map(|s| s.to_string()),
+            avatar_url: viewer_data["avatarUrl"].as_str().unwrap_or("").to_string(),
+        };
+
+        let weeks = viewer_data["contributionsCollection"]["contributionCalendar"]["weeks"]
             .as_array()
             .ok_or_else(|| "GitHub did not return a contribution calendar".to_string())?;
-
-        let mut out = Vec::with_capacity(weeks.len());
+        let mut calendar = Vec::with_capacity(weeks.len());
         for week in weeks {
             let mut days = Vec::new();
             if let Some(list) = week["contributionDays"].as_array() {
@@ -550,45 +628,38 @@ impl GitHubApi {
                     days.push((date, count));
                 }
             }
-            out.push(days);
+            calendar.push(days);
         }
-        Ok(out)
-    }
 
-    async fn fetch_user_repos(&self) -> Result<Vec<RepoMeta>, String> {
-        let json = self
-            .get_json(
-                "/user/repos",
-                &[
-                    ("per_page", "100".to_string()),
-                    ("sort", "pushed".to_string()),
-                    ("affiliation", "owner,collaborator".to_string()),
-                ],
-            )
-            .await?;
-        let items = json
-            .as_array()
-            .ok_or_else(|| "unexpected /user/repos response".to_string())?;
         let mut repos = Vec::new();
-        for item in items {
-            if item["fork"].as_bool().unwrap_or(false) {
-                continue;
+        if let Some(nodes) = viewer_data["repositories"]["nodes"].as_array() {
+            for node in nodes {
+                if node["isFork"].as_bool().unwrap_or(false) {
+                    continue;
+                }
+                let Some(full) = node["nameWithOwner"].as_str() else {
+                    continue;
+                };
+                let (owner, name) = split_repo(full);
+                let language = node["primaryLanguage"]["name"]
+                    .as_str()
+                    .map(|s| s.to_string());
+                repos.push(RepoMeta {
+                    name_with_owner: full.to_string(),
+                    owner,
+                    name,
+                    color: language_color(language.as_deref()),
+                    language,
+                    url: node["url"].as_str().unwrap_or("").to_string(),
+                });
             }
-            let Some(full) = item["full_name"].as_str() else {
-                continue;
-            };
-            let (owner, name) = split_repo(full);
-            let language = item["language"].as_str().map(|s| s.to_string());
-            repos.push(RepoMeta {
-                name_with_owner: full.to_string(),
-                owner,
-                name,
-                color: language_color(language.as_deref()),
-                language,
-                url: item["html_url"].as_str().unwrap_or("").to_string(),
-            });
         }
-        Ok(repos)
+
+        Ok(ViewerSnapshot {
+            viewer,
+            calendar,
+            repos,
+        })
     }
 
     async fn search_commits(&self, query: &str, page: u32) -> Result<serde_json::Value, String> {
@@ -777,12 +848,11 @@ fn gh_command() -> Command {
 }
 
 async fn fetch_cli_token() -> Result<String, String> {
-    let output = tauri::async_runtime::spawn_blocking(|| {
-        gh_command().args(["auth", "token"]).output()
-    })
-    .await
-    .map_err(|e| format!("failed to read gh auth token: {e}"))?
-    .map_err(|e| format!("failed to invoke gh auth token: {e}"))?;
+    let output =
+        tauri::async_runtime::spawn_blocking(|| gh_command().args(["auth", "token"]).output())
+            .await
+            .map_err(|e| format!("failed to read gh auth token: {e}"))?
+            .map_err(|e| format!("failed to invoke gh auth token: {e}"))?;
 
     if !output.status.success() {
         return Err(format!(
@@ -798,9 +868,7 @@ async fn fetch_cli_token() -> Result<String, String> {
 }
 
 async fn check_cli_installed() -> bool {
-    match tauri::async_runtime::spawn_blocking(|| gh_command().arg("--version").output())
-        .await
-    {
+    match tauri::async_runtime::spawn_blocking(|| gh_command().arg("--version").output()).await {
         Ok(Ok(out)) => out.status.success(),
         _ => false,
     }
@@ -817,7 +885,10 @@ fn first_line(value: &serde_json::Value) -> String {
 }
 
 fn is_revert(message: &str) -> bool {
-    message.trim_start().to_ascii_lowercase().starts_with("revert")
+    message
+        .trim_start()
+        .to_ascii_lowercase()
+        .starts_with("revert")
 }
 
 fn is_wip(message: &str) -> bool {
@@ -831,6 +902,7 @@ fn is_wip(message: &str) -> bool {
 
 async fn process_today_page(
     api: &GitHubApi,
+    db: &Db,
     json: &serde_json::Value,
     filters: &Filters,
     count: &mut u32,
@@ -862,7 +934,7 @@ async fn process_today_page(
             continue;
         }
         if filters.docs || filters.lock {
-            let files = api.fetch_commit_files(&repo_name, &sha).await?;
+            let files = fetch_commit_files_cached(api, db, &repo_name, &sha).await?;
             if !files.is_empty() && !has_real_change(&files, filters) {
                 continue;
             }
@@ -874,7 +946,11 @@ async fn process_today_page(
             short_sha: sha.chars().take(7).collect(),
             sha,
             message,
-            repo: repo_name.rsplit('/').next().unwrap_or(&repo_name).to_string(),
+            repo: repo_name
+                .rsplit('/')
+                .next()
+                .unwrap_or(&repo_name)
+                .to_string(),
             url: item["html_url"].as_str().unwrap_or("").to_string(),
             authored_at: item["commit"]["author"]["date"]
                 .as_str()
@@ -893,6 +969,27 @@ struct CommitFile {
 #[derive(Debug, Deserialize)]
 struct CommitFilesResponse {
     files: Option<Vec<CommitFile>>,
+}
+
+/// SHA-keyed wrapper around [`GitHubApi::fetch_commit_files`]. Commits are
+/// immutable, so a hit on `commit_files_cache` lets us skip the GitHub REST
+/// call entirely on re-refresh. Empty/no-token edge cases short-circuit before
+/// the cache is touched, matching the bare API method's behaviour.
+async fn fetch_commit_files_cached(
+    api: &GitHubApi,
+    db: &Db,
+    repo: &str,
+    sha: &str,
+) -> Result<Vec<String>, String> {
+    if repo.is_empty() || sha.is_empty() {
+        return Ok(Vec::new());
+    }
+    if let Ok(Some(cached)) = db.get_cached_commit_files(repo, sha) {
+        return Ok(cached);
+    }
+    let files = api.fetch_commit_files(repo, sha).await?;
+    let _ = db.put_cached_commit_files(repo, sha, &files);
+    Ok(files)
 }
 
 /// True if at least one changed file is "real" work given the active filters
@@ -1041,7 +1138,9 @@ mod tests {
         assert!(is_documentation_path("README.md"));
         assert!(is_documentation_path("docs/architecture.png"));
         assert!(is_documentation_path("Documentation/guide.adoc"));
-        assert!(is_documentation_path(".github/ISSUE_TEMPLATE/bug_report.yml"));
+        assert!(is_documentation_path(
+            ".github/ISSUE_TEMPLATE/bug_report.yml"
+        ));
         assert!(is_documentation_path("LICENSE-MIT"));
     }
 

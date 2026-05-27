@@ -18,7 +18,7 @@ pub fn start(app: AppHandle, state: Arc<AppState>) {
 
 pub fn refresh_now(app: &AppHandle, state: &Arc<AppState>) {
     let config = state.db.load_config();
-    if let Ok(snap) = tauri::async_runtime::block_on(gh::build_snapshot(&config)) {
+    if let Ok(snap) = tauri::async_runtime::block_on(gh::build_snapshot(&state.db, &config)) {
         if let Ok(value) = serde_json::to_value(&snap) {
             let _ = state.db.save_snapshot(&value);
         }
@@ -78,7 +78,10 @@ fn tick(app: &AppHandle, state: &Arc<AppState>) {
         send(
             app,
             "Morning check-in",
-            &format!("Today's target: {remaining} more commit{}.", plural(remaining)),
+            &format!(
+                "Today's target: {remaining} more commit{}.",
+                plural(remaining)
+            ),
         );
     }
 
@@ -86,7 +89,10 @@ fn tick(app: &AppHandle, state: &Arc<AppState>) {
         send(
             app,
             "Midday check-in",
-            &format!("{today_count}/{} so far — keep the rhythm.", config.daily_goal),
+            &format!(
+                "{today_count}/{} so far — keep the rhythm.",
+                config.daily_goal
+            ),
         );
     }
 

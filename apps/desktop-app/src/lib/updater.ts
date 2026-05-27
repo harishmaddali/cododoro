@@ -1,27 +1,37 @@
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 
-export async function checkForUpdates(silent = false): Promise<void> {
+export type AvailableUpdate = {
+  version: string;
+  body: string;
+  install: () => Promise<void>;
+};
+
+export async function checkForUpdates(silent = false): Promise<AvailableUpdate | null> {
   try {
     const update = await check();
     if (!update) {
-      if (!silent) {
-        console.log("No updates available");
-      }
-      return;
+      if (!silent) console.log("No updates available");
+      return null;
     }
 
-    const shouldInstall = silent
-      ? true
-      : window.confirm(
-          `A new version ${update.version} is available!\n\n${update.body ?? ""}\n\nWould you like to install it now?`,
-        );
+    const install = async () => {
+      await update.downloadAndInstall();
+      await relaunch();
+    };
 
-    if (!shouldInstall) return;
+    if (silent) {
+      await install();
+      return null;
+    }
 
-    await update.downloadAndInstall();
-    await relaunch();
+    return {
+      version: update.version,
+      body: update.body ?? "",
+      install,
+    };
   } catch (e) {
     console.error("Failed to check for updates:", e);
+    return null;
   }
 }

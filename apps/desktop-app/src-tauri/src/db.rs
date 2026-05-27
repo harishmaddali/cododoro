@@ -82,10 +82,20 @@ impl Db {
     }
 
     pub fn load_config(&self) -> Config {
-        self.get_json::<Config>(CONFIG_KEY)
-            .ok()
-            .flatten()
-            .unwrap_or_default()
+        match self.get_json::<Config>(CONFIG_KEY).ok().flatten() {
+            Some(mut config) => {
+                // One-shot bump of the legacy 30-minute poll default to 15. A stored value
+                // of exactly 30 implies the user never customized it; any other value is
+                // treated as an explicit choice and left alone. Safe to remove after a few
+                // releases once the bulk of installs have rolled past this version.
+                if config.poll_interval_minutes == 30 {
+                    config.poll_interval_minutes = 15;
+                    let _ = self.save_config(&config);
+                }
+                config
+            }
+            None => Config::default(),
+        }
     }
 
     pub fn save_config(&self, config: &Config) -> Result<(), String> {
@@ -220,7 +230,7 @@ impl Default for Config {
             filters: Filters::default(),
             nudges: Nudges::default(),
             reminder_time: "21:00".to_string(),
-            poll_interval_minutes: 30,
+            poll_interval_minutes: 15,
         }
     }
 }

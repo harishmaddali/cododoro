@@ -17,7 +17,8 @@ const blurb = {
   href={href}
   class="btn btn-dark flex-1 min-w-[180px] flex-col h-auto py-4 gap-1"
   aria-label={`Download Cododoro for ${platform}`}
+  data-cododoro-download={platform}
 >
   <span class="text-[15px] font-semibold text-fg-0">{platform}</span>
-  <span class="text-[12px] text-fg-2 font-normal">{blurb}</span>
+  <span class="text-[12px] text-fg-2 font-normal" data-cododoro-status>{blurb}</span>
 </a>

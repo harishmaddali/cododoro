@@ -29,24 +29,24 @@ const year = new Date().getFullYear();
     <!-- Hero -->
     <section
       aria-labelledby="hero-title"
-      class="relative overflow-hidden bg-dot-grid"
+      class="relative overflow-hidden bg-dot-grid min-h-[calc(100svh-3.5rem)] flex items-center"
       style="background-size: auto, 18px 18px;"
     >
-      <div class="max-w-4xl mx-auto px-4 sm:px-6 pt-24 pb-20 text-center">
-        <div class="flex justify-center mb-8">
-          <Logo size={56} showWordmark={false} />
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 py-28 sm:py-32 lg:py-36 text-center">
+        <div class="flex justify-center mb-10">
+          <Logo size={72} showWordmark={false} />
         </div>
-        <p class="eyebrow mb-4">A small desktop app for shippers</p>
+        <p class="eyebrow mb-5">A small desktop app for shippers</p>
         <h1
           id="hero-title"
-          class="text-4xl sm:text-5xl md:text-6xl font-semibold tracking-[-0.02em] leading-[1.05] text-fg-0"
+          class="text-5xl sm:text-6xl md:text-7xl font-semibold tracking-[-0.02em] leading-[1.05] text-fg-0"
         >
           Cododoro
         </h1>
-        <p class="mt-6 text-lg md:text-xl text-fg-1 max-w-2xl mx-auto leading-relaxed">
+        <p class="mt-7 text-xl md:text-2xl text-fg-1 max-w-3xl mx-auto leading-relaxed">
           Pomodoro for shipping. Set a commit goal, ride the heatmap.
         </p>
-        <div class="mt-10 flex items-center justify-center gap-3 flex-wrap">
+        <div class="mt-12 flex items-center justify-center gap-3 flex-wrap">
           <a href="#download" class="btn btn-primary">Get Cododoro</a>
           <a href={repoUrl} target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
             View on GitHub

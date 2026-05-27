@@ -6,7 +6,6 @@ import { Onboarding } from "./components/Onboarding";
 import { TopBar, TabBar } from "./components/shared";
 import { Home } from "./screens/Home";
 import { ReposScreen } from "./screens/Repos";
-import { CalendarScreen } from "./screens/History";
 import { ProfileScreen } from "./screens/Profile";
 import { RepoDetail } from "./screens/RepoDetail";
 import { GoalsScreen } from "./screens/Goals";
@@ -270,7 +269,6 @@ export default function App() {
             onOpenCommits={() => setOverlay({ type: "commits" })}
           />
         )}
-        {tab === "calendar" && <CalendarScreen snapshot={snapshot} days={days} />}
         {tab === "profile" && (
           <ProfileScreen
             snapshot={snapshot}
@@ -278,7 +276,6 @@ export default function App() {
             config={config}
             onOpenGoals={() => setOverlay({ type: "goals" })}
             onOpenNudges={() => setOverlay({ type: "nudges" })}
-            onOpenCalendar={() => setTab("calendar")}
             onOpenRepos={() => setOverlay({ type: "repos" })}
             onReset={resetAccount}
           />

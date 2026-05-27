@@ -1,0 +1,258 @@
+---
+import Icon from "./Icon.astro";
+import Logo from "./Logo.astro";
+
+function mulberry32(seed: number) {
+  return () => {
+    let t = (seed += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function generateYear(seed: number) {
+  const rng = mulberry32(seed);
+  const total = 53 * 7;
+  const cells: number[] = [];
+  const intensity = 0.78;
+  const peakBoost = 0.3;
+  for (let i = 0; i < total; i++) {
+    const weekendMod = i % 7 === 0 || i % 7 === 6 ? 0.55 : 1;
+    let p = rng() * weekendMod;
+    p += (i / total) * 0.18;
+    let level = 0;
+    if (p > 1 - intensity - peakBoost) level = 4;
+    else if (p > 1 - intensity - peakBoost + 0.18) level = 3;
+    else if (p > 1 - intensity - peakBoost + 0.36) level = 2;
+    else if (p > 1 - intensity - peakBoost + 0.55) level = 1;
+    cells.push(level);
+  }
+  return cells;
+}
+
+const heatmapCells = generateYear(8).slice(-364);
+
+const filterRows = [
+  {
+    label: "Merge commit · #2391",
+    sub: "Merge branch 'main' into feat/x",
+    off: true,
+  },
+  { label: "Docs · README.md", sub: "+3 −1 only .md changed", off: true },
+  {
+    label: "feat: streak freeze logic",
+    sub: "+88 −12 · 6 files",
+    off: false,
+    count: true,
+  },
+];
+
+const streakCells = Array.from({ length: 14 }, (_, i) => (i < 13 ? 4 : 0));
+---
+
+<section id="features" aria-labelledby="features-title" class="container-page py-20">
+  <div class="text-center max-w-[720px] mx-auto mb-12">
+    <h2
+      id="features-title"
+      class="font-semibold tracking-[-0.025em] leading-[1.08] m-0"
+      style="font-size: clamp(32px, 4vw, 46px);"
+    >
+      One question, every day.
+    </h2>
+    <p class="text-fg-1 mt-[18px] mx-auto max-w-[560px] leading-[1.55]" style="font-size: 17px;">
+      Did you actually ship?
+    </p>
+  </div>
+
+  <div class="grid gap-4" style="grid-template-columns: repeat(12, 1fr);">
+    <!-- Feature: Goal ring -->
+    <article class="feature-card col-span-12 md:col-span-4">
+      <div class="label">Daily goal</div>
+      <h3>A ring that fills as you ship.</h3>
+      <p class="desc">
+        Set a daily commit target you can actually hit on bad days too. The ring closes the moment
+        you push.
+      </p>
+      <div class="art justify-center" style="padding-top: 20px;">
+        <div class="relative" style="width: 180px; height: 180px;">
+          <svg width="180" height="180" style="transform: rotate(-90deg);" aria-hidden="true">
+            <circle cx="90" cy="90" r="80" stroke="#1a2129" stroke-width="12" fill="none"></circle>
+            <circle
+              cx="90"
+              cy="90"
+              r="80"
+              stroke="#39d878"
+              stroke-width="12"
+              fill="none"
+              stroke-dasharray={2 * Math.PI * 80}
+              stroke-dashoffset="0"
+              stroke-linecap="round"
+              style="filter: drop-shadow(0 0 16px rgba(57,216,120,0.45));"></circle>
+          </svg>
+          <div class="absolute inset-0 grid place-items-center text-center">
+            <div>
+              <div
+                class="font-mono leading-none text-grass-4"
+                style="font-size: 44px; font-weight: 500;"
+              >
+                5<span class="text-fg-3 font-light">/3</span>
+              </div>
+              <div class="text-[11px] text-fg-2 mt-1.5">commits today</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- Feature: Filters -->
+    <article class="feature-card col-span-12 md:col-span-4">
+      <div class="label">Real commits only</div>
+      <h3>Filter out the noise.</h3>
+      <p class="desc">
+        Merge commits. Docs-only diffs. Lockfile bumps. Reverts. None of them break your streak or
+        count toward your goal.
+      </p>
+      <div class="art flex-col justify-end" style="gap: 10px;">
+        {
+          filterRows.map((row) => (
+            <div
+              class:list={[
+                "flex items-center gap-3 py-2.5 px-3.5 bg-bg-2 border border-line rounded-[10px]",
+              ]}
+              style={row.off ? "opacity: 0.55;" : ""}
+            >
+              <div
+                class="grid place-items-center flex-shrink-0"
+                style={`width: 22px; height: 22px; border-radius: 6px; background: ${
+                  row.off ? "var(--bg-3, #161c26)" : "rgba(57,216,120,0.12)"
+                }; color: ${row.off ? "#4a5160" : "#39d878"};`}
+              >
+                <Icon name={row.off ? "x" : "check"} size={12} stroke={3} />
+              </div>
+              <div class="flex-1 min-w-0">
+                <div
+                  class="font-mono overflow-hidden whitespace-nowrap text-ellipsis"
+                  style={`font-size: 12.5px; color: ${row.off ? "#6e7684" : "#e7ecf3"}; text-decoration: ${row.off ? "line-through" : "none"};`}
+                >
+                  {row.label}
+                </div>
+                <div
+                  class="text-fg-3 overflow-hidden whitespace-nowrap text-ellipsis mt-0.5"
+                  style="font-size: 10.5px;"
+                >
+                  {row.sub}
+                </div>
+              </div>
+              {row.count && (
+                <span
+                  class="pill pill-green flex-shrink-0"
+                  style="height: 22px; font-size: 10.5px;"
+                >
+                  +1
+                </span>
+              )}
+            </div>
+          ))
+        }
+      </div>
+    </article>
+
+    <!-- Feature: Heatmap (wide tall) -->
+    <article class="feature-card col-span-12 md:col-span-8" style="min-height: 380px;">
+      <div class="label">History</div>
+      <h3>One glance. A whole year.</h3>
+      <p class="desc">Only the commits that count. Hover any cell to see the day's repos.</p>
+      <div class="art flex-col justify-end" style="gap: 10px;">
+        <div class="overflow-hidden bg-bg-2 border border-line rounded-xl" style="padding: 16px;">
+          <div
+            class="grid"
+            style="grid-template-columns: repeat(52, 1fr); grid-template-rows: repeat(7, 1fr); grid-auto-flow: column; gap: 2.5px; height: 110px; width: 100%;"
+            aria-hidden="true"
+          >
+            {
+              heatmapCells.map((level) => (
+                <div
+                  class="cell"
+                  data-l={level || undefined}
+                  style="width: 100%; height: 100%; min-width: 0;"
+                />
+              ))
+            }
+          </div>
+          <div class="flex justify-between items-center mt-3.5 text-[11px] text-fg-3">
+            <span class="font-mono">May 2025</span>
+            <div class="flex items-center gap-1.5">
+              <span>Less</span>
+              <div class="cell" style="width: 9px; height: 9px;"></div>
+              <div class="cell" data-l="1" style="width: 9px; height: 9px;"></div>
+              <div class="cell" data-l="2" style="width: 9px; height: 9px;"></div>
+              <div class="cell" data-l="3" style="width: 9px; height: 9px;"></div>
+              <div class="cell" data-l="4" style="width: 9px; height: 9px;"></div>
+              <span>More</span>
+            </div>
+            <span class="font-mono">May 2026</span>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- Feature: Streak -->
+    <article class="feature-card col-span-12 md:col-span-4">
+      <div class="label">Streak</div>
+      <h3>87 days and counting.</h3>
+      <p class="desc">One freeze day per month. Life happens.</p>
+      <div class="art justify-center">
+        <div class="text-center">
+          <div
+            class="inline-flex items-center gap-2 py-2.5 px-4"
+            style="background: rgba(57,216,120,0.08); border: 1px solid rgba(57,216,120,0.2); border-radius: 999px;"
+          >
+            <Icon name="flame" size={16} stroke={1.5} class="text-grass-4" />
+            <div class="font-mono text-grass-4" style="font-size: 32px; font-weight: 500;">87</div>
+            <div class="text-[13px] text-fg-1">days</div>
+          </div>
+          <div class="mt-3.5 flex gap-[3px] justify-center" aria-hidden="true">
+            {
+              streakCells.map((level) => (
+                <div class="cell" data-l={level || undefined} style="width: 12px; height: 12px;" />
+              ))
+            }
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- Feature: Nudges -->
+    <article class="feature-card col-span-12 md:col-span-4">
+      <div class="label">Nudges</div>
+      <h3>A tap before midnight.</h3>
+      <p class="desc">Quiet by default. Loud when you're about to break a streak.</p>
+      <div class="art items-end justify-center">
+        <div
+          class="flex items-start gap-2.5 w-full"
+          style="padding: 12px; border-radius: 12px; background: rgba(20,24,30,0.7); backdrop-filter: blur(20px); border: 1px solid var(--line, #1f2733); max-width: 280px;"
+        >
+          <div
+            class="grid place-items-center flex-shrink-0"
+            style="width: 26px; height: 26px; border-radius: 6px; background: #39d878;"
+          >
+            <Logo size={14} showWordmark={false} />
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex justify-between items-baseline">
+              <div class="text-[11px] font-semibold">CODODORO</div>
+              <div class="text-[10px] text-fg-3">now</div>
+            </div>
+            <div class="text-[12.5px] font-medium mt-1" style="line-height: 1.4;">
+              2 commits to keep your 23-day streak.
+            </div>
+            <div class="text-[11.5px] text-fg-2 mt-0.5" style="line-height: 1.4;">
+              3 hours left.
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+  </div>
+</section>

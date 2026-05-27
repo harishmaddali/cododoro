@@ -394,7 +394,6 @@ export function TabBar({
 }) {
   const tabs: { id: Tab; label: string; icon: IconName }[] = [
     { id: "home", label: "Today", icon: "home" },
-    { id: "repos", label: "Repos", icon: "repo" },
     { id: "calendar", label: "History", icon: "calendar" },
     { id: "profile", label: "Profile", icon: "user" },
   ];

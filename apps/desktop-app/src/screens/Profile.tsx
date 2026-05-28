@@ -1,8 +1,8 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Icon, IconName } from "../lib/icons";
 import { ContribGrid, SevenDayChart, StatTile } from "../components/shared";
 import { openExternal } from "../lib/api";
-import { AppSnapshot, Config, DayPoint, deriveStatus } from "../lib/types";
+import { AppSnapshot, Config, DayPoint, deriveStatus, toDayPoints } from "../lib/types";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -36,6 +36,10 @@ export function ProfileScreen({
   const status = deriveStatus(snapshot);
   const weekTotal = snapshot.repos.reduce((s, r) => s + r.week, 0);
   const activeCount = snapshot.repos.filter((r) => r.today > 0).length;
+  const commitsLast7Days = useMemo<DayPoint[]>(
+    () => toDayPoints(snapshot.commitsLast7Days ?? []),
+    [snapshot.commitsLast7Days],
+  );
   const nudgeLabel = config.nudges.morning
     ? "Morning · 08:30"
     : config.nudges.midday
@@ -115,7 +119,7 @@ export function ProfileScreen({
           <div className="t-h3" style={{ marginBottom: 14 }}>
             Last 7 days
           </div>
-          <SevenDayChart days={days.slice(-7)} goal={snapshot.dailyGoal} />
+          <SevenDayChart days={commitsLast7Days} goal={snapshot.dailyGoal} />
         </div>
 
         <div

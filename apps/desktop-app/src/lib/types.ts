@@ -50,7 +50,7 @@ export const defaultConfig: Config = {
   dailyGoal: 3,
   streakDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
   repoGoals: {},
-  filters: { merge: true, docs: true, lock: true, revert: false, empty: true },
+  filters: { merge: true, docs: false, lock: false, revert: false, empty: true },
   nudges: {
     morning: false,
     midday: false,

@@ -679,41 +679,19 @@ export function SevenDayChart({ days, goal }: { days: DayPoint[]; goal: number }
           );
         })}
         {showGoalLine && (
-          <>
-            <div
-              aria-hidden
-              style={{
-                position: "absolute",
-                left: 0,
-                right: 0,
-                bottom: `${goalPct}%`,
-                height: 0,
-                borderTop: "1px dashed var(--warn)",
-                pointerEvents: "none",
-                zIndex: 1,
-              }}
-            />
-            <div
-              className="t-mono"
-              style={{
-                position: "absolute",
-                right: 0,
-                bottom: `calc(${goalPct}% + 1px)`,
-                fontSize: 9.5,
-                fontWeight: 600,
-                letterSpacing: "0.05em",
-                textTransform: "uppercase",
-                color: "var(--warn)",
-                padding: "0 4px",
-                background: "var(--bg-1)",
-                pointerEvents: "none",
-                zIndex: 2,
-                lineHeight: 1,
-              }}
-            >
-              Goal · {goal}
-            </div>
-          </>
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: `${goalPct}%`,
+              height: 0,
+              borderTop: "1px dashed rgba(255,255,255,0.35)",
+              pointerEvents: "none",
+              zIndex: 1,
+            }}
+          />
         )}
       </div>
       <div style={{ display: "flex", gap: 8 }}>

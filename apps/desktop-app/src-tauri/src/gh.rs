@@ -194,6 +194,13 @@ pub struct AppSnapshot {
     #[serde(rename = "bestDay")]
     pub best_day: Option<BestDay>,
     pub days: Vec<DayCount>,
+    /// Filtered per-day commit counts for the last 7 local calendar days,
+    /// oldest first. Drives the Profile screen's "Last 7 days" bar chart.
+    /// Counts match the snapshot's `today_count` semantics (the same
+    /// merge/docs/lock/revert/empty filters apply), so the chart reflects
+    /// raw commits rather than GitHub's broader contribution graph.
+    #[serde(rename = "commitsLast7Days")]
+    pub commits_last_7_days: Vec<DayCount>,
     #[serde(rename = "recentCommits")]
     pub recent_commits: Vec<CommitDetail>,
     pub repos: Vec<RepoEntry>,
@@ -241,10 +248,13 @@ pub async fn build_snapshot(db: &Db, config: &Config) -> Result<AppSnapshot, Str
     let (today_count, today_by_repo, recent_commits) =
         fetch_today(&api, db, &viewer.login, &config.filters, today).await?;
 
-    // Lightweight last-7-day per-repo counts (no per-commit file inspection).
-    let week_by_repo = fetch_week(&api, &viewer.login, &config.filters, today)
+    // Last-7-day stats: per-repo totals (for the "This week" stat tile) and
+    // per-day commit counts (for the Profile chart). Both use the same
+    // /search/commits pass and the same filters as `fetch_today`, so the
+    // last entry of `commits_last_7_days` matches `today_count`.
+    let week_stats = fetch_week(&api, db, &viewer.login, &config.filters, today)
         .await
-        .unwrap_or_default();
+        .unwrap_or_else(|_| WeekStats::empty(today));
 
     let days = to_day_counts(&calendar);
     let year_total = days.iter().map(|d| d.count).sum();
@@ -259,7 +269,7 @@ pub async fn build_snapshot(db: &Db, config: &Config) -> Result<AppSnapshot, Str
     let streak = current_streak(&days, &config.streak_days, &today);
     let (longest_streak, longest_range) = longest_streak(&days, &config.streak_days);
 
-    let repos = merge_repos(&repo_meta, &today_by_repo, &week_by_repo, config);
+    let repos = merge_repos(&repo_meta, &today_by_repo, &week_stats.by_repo, config);
 
     Ok(AppSnapshot {
         login: viewer.login,
@@ -275,6 +285,7 @@ pub async fn build_snapshot(db: &Db, config: &Config) -> Result<AppSnapshot, Str
         year_total,
         best_day,
         days,
+        commits_last_7_days: week_stats.by_day,
         recent_commits,
         repos,
     })
@@ -339,12 +350,47 @@ async fn fetch_today(
     Ok((count, by_repo, commits))
 }
 
+/// Last-7-day aggregates derived from a single /search/commits pass.
+struct WeekStats {
+    /// Filtered commits per repo over the last 7 local days. Drives the
+    /// "This week" stat tile.
+    by_repo: BTreeMap<String, u32>,
+    /// Filtered commits per local calendar day, oldest first, exactly 7
+    /// entries (one per day, zero-filled where no commits were found).
+    by_day: Vec<DayCount>,
+}
+
+impl WeekStats {
+    /// Empty stats with the 7 day-buckets pre-seeded at zero so the chart
+    /// always has a stable 7-bar shape even when the API call fails.
+    fn empty(today: NaiveDate) -> Self {
+        Self {
+            by_repo: BTreeMap::new(),
+            by_day: empty_week_days(today),
+        }
+    }
+}
+
+fn empty_week_days(today: NaiveDate) -> Vec<DayCount> {
+    (0..7)
+        .map(|offset| {
+            let date = today - chrono::Duration::days(6 - offset as i64);
+            DayCount {
+                date: date.format("%Y-%m-%d").to_string(),
+                count: 0,
+                level: 0,
+            }
+        })
+        .collect()
+}
+
 async fn fetch_week(
     api: &GitHubApi,
+    db: &Db,
     login: &str,
     filters: &Filters,
     today: NaiveDate,
-) -> Result<BTreeMap<String, u32>, String> {
+) -> Result<WeekStats, String> {
     let week_ago = today - chrono::Duration::days(6);
     let start = Local
         .from_local_datetime(&week_ago.and_hms_opt(0, 0, 0).expect("valid time"))
@@ -353,29 +399,55 @@ async fn fetch_week(
         .with_timezone(&Utc)
         .format("%Y-%m-%dT%H:%M:%SZ")
         .to_string();
-    let now = Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    let end = Local
+        .from_local_datetime(&today.and_hms_opt(23, 59, 59).expect("valid time"))
+        .single()
+        .ok_or_else(|| "ambiguous local end of week".to_string())?
+        .with_timezone(&Utc)
+        .format("%Y-%m-%dT%H:%M:%SZ")
+        .to_string();
 
-    let query = format!("author:{login} author-date:{start}..{now}");
+    let query = format!("author:{login} author-date:{start}..{end}");
     let first = api.search_commits(&query, 1).await?;
     let total = first["total_count"].as_u64().unwrap_or(0) as u32;
 
     let mut by_repo: BTreeMap<String, u32> = BTreeMap::new();
-    collect_week_page(&first, filters, &mut by_repo);
+    let mut by_day: BTreeMap<NaiveDate, u32> = (0..7)
+        .map(|offset| (week_ago + chrono::Duration::days(offset as i64), 0u32))
+        .collect();
+
+    process_week_page(api, db, &first, filters, &mut by_repo, &mut by_day).await?;
     let pages = total.div_ceil(PAGE_SIZE).min(WEEK_PAGE_CAP);
     for page in 2..=pages {
         let json = api.search_commits(&query, page).await?;
-        collect_week_page(&json, filters, &mut by_repo);
+        process_week_page(api, db, &json, filters, &mut by_repo, &mut by_day).await?;
     }
-    Ok(by_repo)
+
+    let by_day_vec: Vec<DayCount> = by_day
+        .into_iter()
+        .map(|(date, count)| DayCount {
+            date: date.format("%Y-%m-%d").to_string(),
+            count,
+            level: 0,
+        })
+        .collect();
+
+    Ok(WeekStats {
+        by_repo,
+        by_day: by_day_vec,
+    })
 }
 
-fn collect_week_page(
+async fn process_week_page(
+    api: &GitHubApi,
+    db: &Db,
     json: &serde_json::Value,
     filters: &Filters,
     by_repo: &mut BTreeMap<String, u32>,
-) {
+    by_day: &mut BTreeMap<NaiveDate, u32>,
+) -> Result<(), String> {
     let Some(items) = json["items"].as_array() else {
-        return;
+        return Ok(());
     };
     for item in items {
         let is_merge = item["parents"].as_array().map(|a| a.len()).unwrap_or(0) > 1;
@@ -389,10 +461,34 @@ fn collect_week_page(
         if filters.empty && is_wip(&message) {
             continue;
         }
-        if let Some(repo) = item["repository"]["full_name"].as_str() {
-            *by_repo.entry(repo.to_string()).or_insert(0) += 1;
+        let Some(repo_name) = item["repository"]["full_name"].as_str() else {
+            continue;
+        };
+        let Some(sha) = item["sha"].as_str() else {
+            continue;
+        };
+        if filters.docs || filters.lock {
+            let files = fetch_commit_files_cached(api, db, repo_name, sha).await?;
+            if !files.is_empty() && !has_real_change(&files, filters) {
+                continue;
+            }
+        }
+        *by_repo.entry(repo_name.to_string()).or_insert(0) += 1;
+
+        // Bucket each commit by its author timestamp converted to the user's
+        // local calendar date. The UTC search window can include commits that
+        // land outside our 7 local days at the edges; those simply miss the
+        // bucket map and are dropped from the chart.
+        if let Some(date_str) = item["commit"]["author"]["date"].as_str() {
+            if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(date_str) {
+                let local_date = dt.with_timezone(&Local).date_naive();
+                if let Some(count) = by_day.get_mut(&local_date) {
+                    *count += 1;
+                }
+            }
         }
     }
+    Ok(())
 }
 
 fn merge_repos(
@@ -1286,5 +1382,15 @@ mod tests {
         assert_eq!(days[1].level, 1);
         // The peak day itself is the brightest level.
         assert_eq!(days[2].level, 4);
+    }
+
+    #[test]
+    fn empty_week_days_returns_seven_zeroed_days_oldest_first() {
+        let today = NaiveDate::from_ymd_opt(2026, 5, 28).unwrap();
+        let days = empty_week_days(today);
+        assert_eq!(days.len(), 7);
+        assert_eq!(days.first().map(|d| d.date.as_str()), Some("2026-05-22"));
+        assert_eq!(days.last().map(|d| d.date.as_str()), Some("2026-05-28"));
+        assert!(days.iter().all(|d| d.count == 0 && d.level == 0));
     }
 }

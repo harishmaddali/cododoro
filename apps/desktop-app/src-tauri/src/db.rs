@@ -173,8 +173,8 @@ impl Default for Filters {
     fn default() -> Self {
         Self {
             merge: true,
-            docs: true,
-            lock: true,
+            docs: false,
+            lock: false,
             revert: false,
             empty: true,
         }

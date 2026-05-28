@@ -11,6 +11,7 @@ import { RepoDetail } from "./screens/RepoDetail";
 import { GoalsScreen } from "./screens/Goals";
 import { NudgesScreen } from "./screens/Nudges";
 import { CommitsScreen } from "./screens/Commits";
+import { RateLimitsScreen } from "./screens/RateLimits";
 import { authStatus, getConfig, loadSnapshot, refresh as apiRefresh, saveConfig } from "./lib/api";
 import { AvailableUpdate, checkForUpdates } from "./lib/updater";
 import { UpdatePrompt } from "./components/UpdatePrompt";
@@ -254,6 +255,8 @@ export default function App() {
     );
   } else if (overlay?.type === "commits") {
     body = <CommitsScreen snapshot={snapshot} onBack={() => setOverlay(null)} />;
+  } else if (overlay?.type === "rate-limits") {
+    body = <RateLimitsScreen onBack={() => setOverlay(null)} />;
   } else if (overlay?.type === "repos") {
     body = (
       <ReposScreen
@@ -283,6 +286,7 @@ export default function App() {
             onOpenGoals={() => setOverlay({ type: "goals" })}
             onOpenNudges={() => setOverlay({ type: "nudges" })}
             onOpenRepos={() => setOverlay({ type: "repos" })}
+            onOpenRateLimits={() => setOverlay({ type: "rate-limits" })}
             onReset={resetAccount}
           />
         )}

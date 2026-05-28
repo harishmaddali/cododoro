@@ -24,6 +24,7 @@ pub fn run() {
             commands::save_config,
             commands::load_snapshot,
             commands::refresh,
+            commands::rate_limit_status,
             commands::send_test_notification,
         ])
         .on_window_event(|window, event| {

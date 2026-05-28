@@ -6,6 +6,7 @@ export type Overlay =
   | { type: "goals" }
   | { type: "nudges" }
   | { type: "commits" }
+  | { type: "rate-limits" }
   | null;
 
 export interface GhStatus {
@@ -60,6 +61,14 @@ export const defaultConfig: Config = {
   reminderTime: "21:00",
   pollIntervalMinutes: 15,
 };
+
+export interface RateLimitStatus {
+  login: string;
+  limit: number;
+  remaining: number;
+  used: number;
+  resetAt: string;
+}
 
 export interface CommitDetail {
   sha: string;

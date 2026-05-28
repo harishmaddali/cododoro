@@ -55,6 +55,26 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.tag.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Compute changelog
+        id: changelog
+        shell: bash
+        run: |
+          PREV=$(git describe --tags --abbrev=0 "${{ steps.tag.outputs.tag }}^" 2>/dev/null || echo '')
+          if [ -z "$PREV" ]; then
+            COMMITS=$(git log --pretty=format:'- %s (%h)' --no-merges)
+          else
+            COMMITS=$(git log "$PREV..${{ steps.tag.outputs.tag }}" --pretty=format:'- %s (%h)' --no-merges)
+          fi
+          if [ -z "$COMMITS" ]; then
+            COMMITS="- No releasable commits"
+          fi
+          {
+            echo "commits<<EOF"
+            echo "$COMMITS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
@@ -103,9 +123,10 @@ jobs:
           tagName: ${{ steps.tag.outputs.tag }}
           releaseName: 'cododoro ${{ steps.tag.outputs.tag }}'
           releaseBody: |
-            See the assets to download this version and install.
+            ## What's changed
+            ${{ steps.changelog.outputs.commits }}
 
-            Release artifacts:
+            ## Release artifacts
             - macOS (Intel + Apple Silicon universal binary): `.dmg`
             - Windows: `.msi` and `.exe` installers
             - Linux: `.AppImage` and `.deb`

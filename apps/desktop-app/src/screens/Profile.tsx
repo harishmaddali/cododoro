@@ -14,6 +14,8 @@ interface Props {
   onOpenNudges: () => void;
   onOpenRepos: () => void;
   onOpenRateLimits: () => void;
+  onCheckForUpdates: () => void;
+  checkingForUpdate: boolean;
   onReset: () => void;
 }
 
@@ -25,6 +27,8 @@ export function ProfileScreen({
   onOpenNudges,
   onOpenRepos,
   onOpenRateLimits,
+  onCheckForUpdates,
+  checkingForUpdate,
   onReset,
 }: Props) {
   const repoCount = snapshot.repos.length;
@@ -195,6 +199,13 @@ export function ProfileScreen({
         </div>
         <NavRow icon="github" label="Connected via gh CLI" value={`@${snapshot.login}`} />
         <NavRow icon="zap" label="GitHub rate limits" onClick={onOpenRateLimits} />
+        <NavRow
+          icon="refresh"
+          label="Check for updates"
+          value={checkingForUpdate ? "Checking…" : undefined}
+          onClick={onCheckForUpdates}
+          loading={checkingForUpdate}
+        />
         <NavRow icon="logout" label="Reset & disconnect" onClick={onReset} danger />
 
         <div
@@ -525,16 +536,19 @@ function NavRow({
   value,
   onClick,
   danger,
+  loading,
 }: {
   icon: IconName;
   label: string;
   value?: string;
   onClick?: () => void;
   danger?: boolean;
+  loading?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
+      disabled={loading}
       style={{
         width: "100%",
         display: "flex",
@@ -546,6 +560,8 @@ function NavRow({
         borderRadius: 12,
         marginBottom: 6,
         textAlign: "left",
+        opacity: loading ? 0.7 : 1,
+        cursor: loading ? "default" : undefined,
       }}
     >
       <div
@@ -570,7 +586,13 @@ function NavRow({
           {value}
         </div>
       )}
-      {!danger && onClick && <Icon name="chevron-right" size={14} stroke={1.5} />}
+      {loading ? (
+        <span className="spin" style={{ display: "grid", color: "var(--fg-2)" }}>
+          <Icon name="refresh" size={14} stroke={1.5} />
+        </span>
+      ) : (
+        !danger && onClick && <Icon name="chevron-right" size={14} stroke={1.5} />
+      )}
     </button>
   );
 }

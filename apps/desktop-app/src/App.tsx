@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { getVersion } from "@tauri-apps/api/app";
 import { Welcome } from "./components/Welcome";
 import { AuthGate } from "./components/AuthGate";
 import { Onboarding } from "./components/Onboarding";
@@ -15,6 +16,7 @@ import { RateLimitsScreen } from "./screens/RateLimits";
 import { authStatus, getConfig, loadSnapshot, refresh as apiRefresh, saveConfig } from "./lib/api";
 import { AvailableUpdate, checkForUpdates } from "./lib/updater";
 import { UpdatePrompt } from "./components/UpdatePrompt";
+import { InfoModal } from "./components/InfoModal";
 import {
   AppSnapshot,
   Config,
@@ -36,6 +38,10 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingUpdate, setPendingUpdate] = useState<AvailableUpdate | null>(null);
+  const [checkingForUpdate, setCheckingForUpdate] = useState(false);
+  const [updateCheckResult, setUpdateCheckResult] = useState<
+    { kind: "up-to-date"; version: string } | { kind: "error" } | null
+  >(null);
 
   const refreshInFlight = useRef<Promise<void> | null>(null);
   const saveTimer = useRef<number | null>(null);
@@ -176,6 +182,26 @@ export default function App() {
     setStage("welcome");
   }, [config]);
 
+  const handleCheckForUpdates = useCallback(async () => {
+    if (checkingForUpdate) return;
+    setCheckingForUpdate(true);
+    setUpdateCheckResult(null);
+    try {
+      const upd = await checkForUpdates();
+      if (upd) {
+        setPendingUpdate(upd);
+      } else {
+        const v = await getVersion().catch(() => "");
+        setUpdateCheckResult({ kind: "up-to-date", version: v });
+      }
+    } catch (e) {
+      console.error("Manual update check failed:", e);
+      setUpdateCheckResult({ kind: "error" });
+    } finally {
+      setCheckingForUpdate(false);
+    }
+  }, [checkingForUpdate]);
+
   const days = snapshot ? toDayPoints(snapshot.days) : [];
 
   let body: React.ReactNode;
@@ -287,6 +313,8 @@ export default function App() {
             onOpenNudges={() => setOverlay({ type: "nudges" })}
             onOpenRepos={() => setOverlay({ type: "repos" })}
             onOpenRateLimits={() => setOverlay({ type: "rate-limits" })}
+            onCheckForUpdates={handleCheckForUpdates}
+            checkingForUpdate={checkingForUpdate}
             onReset={resetAccount}
           />
         )}
@@ -318,6 +346,22 @@ export default function App() {
       {showTabs && <TabBar tab={tab} onTab={setTab} snapshot={snapshot} />}
       {pendingUpdate && (
         <UpdatePrompt update={pendingUpdate} onDismiss={() => setPendingUpdate(null)} />
+      )}
+      {!pendingUpdate && updateCheckResult?.kind === "up-to-date" && (
+        <InfoModal
+          message={
+            updateCheckResult.version
+              ? `You're on the latest version (v${updateCheckResult.version})`
+              : "You're on the latest version"
+          }
+          onDismiss={() => setUpdateCheckResult(null)}
+        />
+      )}
+      {!pendingUpdate && updateCheckResult?.kind === "error" && (
+        <InfoModal
+          message="Could not check for updates. Try again later."
+          onDismiss={() => setUpdateCheckResult(null)}
+        />
       )}
     </div>
   );

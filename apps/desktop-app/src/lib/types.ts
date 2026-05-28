@@ -116,6 +116,13 @@ export interface AppSnapshot {
   yearTotal: number;
   bestDay: BestDay | null;
   days: DayCount[];
+  /**
+   * Per-day commit counts for the last 7 local calendar days, oldest first.
+   * Filtered with the same merge/docs/lock/revert/empty rules as `todayCount`,
+   * so the Profile "Last 7 days" chart shows raw commits rather than GitHub's
+   * broader contribution graph (which mixes in PR reviews, comments, etc.).
+   */
+  commitsLast7Days: DayCount[];
   recentCommits: CommitDetail[];
   repos: RepoEntry[];
 }

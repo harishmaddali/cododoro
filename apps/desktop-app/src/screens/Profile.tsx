@@ -13,6 +13,7 @@ interface Props {
   onOpenGoals: () => void;
   onOpenNudges: () => void;
   onOpenRepos: () => void;
+  onOpenRateLimits: () => void;
   onReset: () => void;
 }
 
@@ -23,6 +24,7 @@ export function ProfileScreen({
   onOpenGoals,
   onOpenNudges,
   onOpenRepos,
+  onOpenRateLimits,
   onReset,
 }: Props) {
   const repoCount = snapshot.repos.length;
@@ -192,6 +194,7 @@ export function ProfileScreen({
           Account
         </div>
         <NavRow icon="github" label="Connected via gh CLI" value={`@${snapshot.login}`} />
+        <NavRow icon="zap" label="GitHub rate limits" onClick={onOpenRateLimits} />
         <NavRow icon="logout" label="Reset & disconnect" onClick={onReset} danger />
 
         <div

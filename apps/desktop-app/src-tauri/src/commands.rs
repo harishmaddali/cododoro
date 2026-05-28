@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tauri::AppHandle;
 use tauri_plugin_notification::NotificationExt;
 
-use crate::gh::{self, AppSnapshot, GhStatus};
+use crate::gh::{self, AppSnapshot, GhStatus, RateLimitStatus};
 use crate::state::AppState;
 use crate::tray;
 
@@ -50,6 +50,11 @@ pub async fn refresh(
     tray::update_progress(&app, snap.today_count, config.daily_goal);
     *state.last_snapshot.lock().unwrap() = Some(snap.clone());
     Ok(snap)
+}
+
+#[tauri::command]
+pub async fn rate_limit_status() -> Result<RateLimitStatus, String> {
+    gh::fetch_rate_limit_status().await
 }
 
 #[tauri::command]

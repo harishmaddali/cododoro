@@ -80,6 +80,32 @@ pub async fn check_status() -> GhStatus {
     }
 }
 
+/// Fetches the user's current GitHub API rate-limit status via GraphQL.
+/// Returns the viewer's login alongside the GraphQL rate-limit object so the
+/// UI can show whose token is being measured.
+pub async fn fetch_rate_limit_status() -> Result<RateLimitStatus, String> {
+    let token = fetch_cli_token().await?;
+    let api = GitHubApi::new(token)?;
+    let query = "query {
+  viewer { login }
+  rateLimit { limit remaining used resetAt }
+}";
+    let json = api.graphql(query, json!({})).await?;
+    let login = json["data"]["viewer"]["login"]
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| "GitHub did not return a login".to_string())?
+        .to_string();
+    let rate_limit = &json["data"]["rateLimit"];
+    Ok(RateLimitStatus {
+        login,
+        limit: rate_limit["limit"].as_u64().unwrap_or(0) as u32,
+        remaining: rate_limit["remaining"].as_u64().unwrap_or(0) as u32,
+        used: rate_limit["used"].as_u64().unwrap_or(0) as u32,
+        reset_at: rate_limit["resetAt"].as_str().unwrap_or("").to_string(),
+    })
+}
+
 #[derive(Debug, Clone)]
 struct Viewer {
     login: String,
@@ -94,6 +120,16 @@ struct ViewerSnapshot {
     viewer: Viewer,
     calendar: Vec<Vec<(String, u32)>>,
     repos: Vec<RepoMeta>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct RateLimitStatus {
+    pub login: String,
+    pub limit: u32,
+    pub remaining: u32,
+    pub used: u32,
+    #[serde(rename = "resetAt")]
+    pub reset_at: String,
 }
 
 #[derive(Debug, Serialize, Clone)]

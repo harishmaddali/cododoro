@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { AppSnapshot, Config, GhStatus } from "./types";
+import { AppSnapshot, Config, GhStatus, RateLimitStatus } from "./types";
 
 export function authStatus(): Promise<GhStatus> {
   return invoke<GhStatus>("auth_status");
@@ -20,6 +20,10 @@ export function loadSnapshot(): Promise<AppSnapshot | null> {
 
 export function refresh(): Promise<AppSnapshot> {
   return invoke<AppSnapshot>("refresh");
+}
+
+export function rateLimitStatus(): Promise<RateLimitStatus> {
+  return invoke<RateLimitStatus>("rate_limit_status");
 }
 
 export function notifyTest(): Promise<void> {

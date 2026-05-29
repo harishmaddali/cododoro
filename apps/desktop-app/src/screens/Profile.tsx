@@ -1,4 +1,5 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import { Icon, IconName } from "../lib/icons";
 import { ContribGrid, SevenDayChart, StatTile } from "../components/shared";
 import { openExternal } from "../lib/api";
@@ -31,6 +32,12 @@ export function ProfileScreen({
   checkingForUpdate,
   onReset,
 }: Props) {
+  const [appVersion, setAppVersion] = useState<string>("");
+  useEffect(() => {
+    getVersion()
+      .then(setAppVersion)
+      .catch(() => undefined);
+  }, []);
   const repoCount = snapshot.repos.length;
   const activeFilters = Object.values(config.filters).filter(Boolean).length;
   const status = deriveStatus(snapshot);
@@ -223,6 +230,20 @@ export function ProfileScreen({
         >
           Cododoro · made for committers
         </div>
+        {appVersion && (
+          <div
+            className="t-mono"
+            style={{
+              textAlign: "center",
+              marginTop: 4,
+              color: "var(--fg-3)",
+              fontSize: 10,
+              opacity: 0.7,
+            }}
+          >
+            v{appVersion}
+          </div>
+        )}
         <div style={{ height: 16 }} />
       </div>
     </div>

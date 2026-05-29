@@ -175,7 +175,11 @@ export function Home({ snapshot, refreshing, onRefresh, onOpenRepo, onOpenCommit
       </div>
 
       <div style={{ height: 24 }} />
-      <SectionHeader title="Recent commits" />
+      <SectionHeader
+        title="Recent commits"
+        action={snapshot.recentCommits.length > 0 ? "View all" : undefined}
+        onAction={snapshot.recentCommits.length > 0 ? onOpenCommits : undefined}
+      />
       <div style={{ padding: "0 20px 24px" }}>
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
           {snapshot.recentCommits.length === 0 && (
@@ -190,29 +194,6 @@ export function Home({ snapshot, refreshing, onRefresh, onOpenRepo, onOpenCommit
             </Fragment>
           ))}
         </div>
-        {snapshot.recentCommits.length > 0 && (
-          <button
-            onClick={onOpenCommits}
-            style={{
-              marginTop: 10,
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              padding: "11px 0",
-              borderRadius: 12,
-              background: "var(--bg-2)",
-              border: "1px solid var(--line)",
-              color: "var(--fg-1)",
-              fontSize: 13,
-              fontWeight: 500,
-            }}
-          >
-            See all commits today
-            <Icon name="arrow-right" size={14} />
-          </button>
-        )}
       </div>
 
       <div style={{ height: 12 }} />

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
 import { Icon } from "../lib/icons";
 import type { AvailableUpdate } from "../lib/updater";
 
@@ -58,10 +59,10 @@ export function UpdatePrompt({ update, onDismiss }: Props) {
 
         {update.body && (
           <div
+            className="update-prompt-body"
             style={{
               maxHeight: 220,
               overflowY: "auto",
-              whiteSpace: "pre-wrap",
               background: "var(--bg-2)",
               border: "1px solid var(--line)",
               borderRadius: 10,
@@ -72,7 +73,7 @@ export function UpdatePrompt({ update, onDismiss }: Props) {
               marginBottom: 16,
             }}
           >
-            {update.body}
+            <ReactMarkdown>{update.body}</ReactMarkdown>
           </div>
         )}
 

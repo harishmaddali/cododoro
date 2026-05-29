@@ -444,3 +444,80 @@ input[type="number"] {
 .hscroll-x::-webkit-scrollbar {
   display: none;
 }
+
+/* Rendered markdown inside the update prompt */
+.update-prompt-body > *:first-child {
+  margin-top: 0;
+}
+.update-prompt-body > *:last-child {
+  margin-bottom: 0;
+}
+.update-prompt-body h1,
+.update-prompt-body h2,
+.update-prompt-body h3,
+.update-prompt-body h4,
+.update-prompt-body h5,
+.update-prompt-body h6 {
+  margin: 12px 0 6px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--fg-0);
+}
+.update-prompt-body h1 {
+  font-size: 15px;
+}
+.update-prompt-body h2 {
+  font-size: 14px;
+}
+.update-prompt-body h3,
+.update-prompt-body h4,
+.update-prompt-body h5,
+.update-prompt-body h6 {
+  font-size: 13px;
+}
+.update-prompt-body p {
+  margin: 6px 0;
+}
+.update-prompt-body ul,
+.update-prompt-body ol {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+.update-prompt-body li {
+  margin: 2px 0;
+}
+.update-prompt-body a {
+  color: var(--grass-4);
+  text-decoration: underline;
+}
+.update-prompt-body code {
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 4px;
+  font-size: 12px;
+}
+.update-prompt-body pre {
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  margin: 6px 0;
+}
+.update-prompt-body pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+.update-prompt-body blockquote {
+  margin: 6px 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--line);
+  color: var(--fg-1);
+}
+.update-prompt-body hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 10px 0;
+}

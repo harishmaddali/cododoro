@@ -1,6 +1,6 @@
 [package]
 name = "cododoro"
-version = "0.5.0"
+version = "0.5.1"
 description = "Daily commit goals via the GitHub CLI"
 authors = ["you"]
 edition = "2021"
